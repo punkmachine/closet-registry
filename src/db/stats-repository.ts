@@ -1,13 +1,12 @@
-import type { Pool } from "pg";
+import type { DataSource } from "typeorm";
+import { InstallEvent } from "./entities/install-event.entity.js";
 
 export async function recordInstall(
-  pool: Pool,
-  itemName: string,
-  itemType: string,
-  itemVersion: string,
+  dataSource: DataSource,
+  pluginId: string,
+  pluginVersionId: string,
+  cliVersion: string,
 ): Promise<void> {
-  await pool.query(
-    `INSERT INTO install_events (item_name, item_type, item_version) VALUES ($1, $2, $3)`,
-    [itemName, itemType, itemVersion],
-  );
+  const repo = dataSource.getRepository(InstallEvent);
+  await repo.save(repo.create({ plugin: { id: pluginId }, pluginVersion: { id: pluginVersionId }, cliVersion }));
 }

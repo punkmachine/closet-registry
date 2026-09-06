@@ -1,12 +1,8 @@
 import type { FastifyPluginAsyncZod } from "@fastify/type-provider-zod";
 
 import { recordInstall } from "../db/stats-repository.js";
-import { getItemVersion } from "../registry/items-repository.js";
-import {
-  errorResponseSchema,
-  statsInstallBodySchema,
-  statsInstallResponseSchema,
-} from "../registry/schemas.js";
+import { findActiveVersionBySlugAndVersion } from "../registry/plugins-repository.js";
+import { errorResponseSchema, statsInstallBodySchema, statsInstallResponseSchema } from "../registry/schemas.js";
 
 const statsRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.post(
@@ -27,15 +23,15 @@ const statsRoutes: FastifyPluginAsyncZod = async (fastify) => {
       },
     },
     async (request, reply) => {
-      const { name, version } = request.body;
-      const item = await getItemVersion(fastify.pg, name, version);
+      const { slug, version, cliVersion } = request.body;
+      const pluginVersion = await findActiveVersionBySlugAndVersion(fastify.orm, slug, version);
 
-      if (!item) {
-        reply.code(400).send({ error: `Unknown item ${name}@${version}` });
+      if (!pluginVersion) {
+        reply.code(400).send({ error: `Unknown plugin ${slug}@${version}` });
         return;
       }
 
-      await recordInstall(fastify.pg, item.name, item.type, item.version);
+      await recordInstall(fastify.orm, pluginVersion.plugin.id, pluginVersion.id, cliVersion);
       reply.code(202).send({ ok: true });
     },
   );

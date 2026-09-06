@@ -1,18 +1,50 @@
+import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { ItemFile, ItemFileContent, ItemFileUpload, ItemType } from "./types.js";
+import type { PluginComponent, PluginFileAi } from "../db/entities/plugin-file.entity.js";
 
-export const REGISTRY_ITEMS_DIR = path.resolve(process.cwd(), "registry", "items");
+export const REGISTRY_PLUGINS_DIR = path.resolve(process.cwd(), "registry", "plugins");
 
 export class PathTraversalError extends Error {
   constructor(public readonly unsafePath: string) {
-    super(`Unsafe file path outside of item version directory: ${unsafePath}`);
+    super(`Unsafe file path outside of plugin version directory: ${unsafePath}`);
     this.name = "PathTraversalError";
   }
 }
 
-export function getVersionDir(type: ItemType, name: string, version: string): string {
-  return path.resolve(REGISTRY_ITEMS_DIR, type, name, version);
+export interface PluginFileLocation {
+  component: PluginComponent;
+  ai: PluginFileAi | null;
+  relativePath: string;
+}
+
+export interface PluginFileUpload extends PluginFileLocation {
+  content: Buffer;
+}
+
+export interface PluginFileWritten extends PluginFileLocation {
+  storagePath: string;
+  sha256: string;
+  sizeBytes: number;
+}
+
+export interface PluginFileRead extends PluginFileLocation {
+  content: Buffer;
+}
+
+function assertSafeSlugSegment(value: string): string {
+  if (value.length === 0 || value.includes("\0") || value.includes("/") || value.includes("\\") || value === "." || value === "..") {
+    throw new PathTraversalError(value);
+  }
+  return value;
+}
+
+export function getPluginVersionDir(pluginSlug: string, version: string): string {
+  return path.resolve(REGISTRY_PLUGINS_DIR, assertSafeSlugSegment(pluginSlug), assertSafeSlugSegment(version));
+}
+
+function buildStorageRelativePath(component: PluginComponent, ai: PluginFileAi | null, relativePath: string): string {
+  return ai === null ? path.join(component, relativePath) : path.join(component, ai, relativePath);
 }
 
 function resolveSafePath(versionDir: string, relativePath: string): string {
@@ -36,46 +68,46 @@ function resolveSafePath(versionDir: string, relativePath: string): string {
 }
 
 export async function writeVersionFiles(
-  type: ItemType,
-  name: string,
+  pluginSlug: string,
   version: string,
-  files: ItemFileUpload[],
-): Promise<void> {
-  const versionDir = getVersionDir(type, name, version);
+  files: PluginFileUpload[],
+): Promise<PluginFileWritten[]> {
+  const versionDir = getPluginVersionDir(pluginSlug, version);
   const targets = files.map((file) => ({
     file,
-    target: resolveSafePath(versionDir, file.path),
+    target: resolveSafePath(versionDir, buildStorageRelativePath(file.component, file.ai, file.relativePath)),
   }));
 
   await fs.rm(versionDir, { recursive: true, force: true });
 
+  const written: PluginFileWritten[] = [];
   for (const { file, target } of targets) {
     await fs.mkdir(path.dirname(target), { recursive: true });
     await fs.writeFile(target, file.content);
+    written.push({
+      component: file.component,
+      ai: file.ai,
+      relativePath: file.relativePath,
+      storagePath: target,
+      sha256: createHash("sha256").update(file.content).digest("hex"),
+      sizeBytes: file.content.byteLength,
+    });
   }
+
+  return written;
 }
 
 export async function readVersionFiles(
-  type: ItemType,
-  name: string,
+  pluginSlug: string,
   version: string,
-  files: ItemFile[],
-): Promise<ItemFileContent[]> {
-  const versionDir = getVersionDir(type, name, version);
+  files: PluginFileLocation[],
+): Promise<PluginFileRead[]> {
+  const versionDir = getPluginVersionDir(pluginSlug, version);
   return Promise.all(
     files.map(async (file) => {
-      const target = resolveSafePath(versionDir, file.path);
-      const content = await fs.readFile(target, "utf8");
+      const target = resolveSafePath(versionDir, buildStorageRelativePath(file.component, file.ai, file.relativePath));
+      const content = await fs.readFile(target);
       return { ...file, content };
     }),
   );
-}
-
-export async function deleteVersionDir(type: ItemType, name: string, version: string): Promise<void> {
-  await fs.rm(getVersionDir(type, name, version), { recursive: true, force: true });
-}
-
-export async function deleteItemDir(type: ItemType, name: string): Promise<void> {
-  const itemDir = path.resolve(REGISTRY_ITEMS_DIR, type, name);
-  await fs.rm(itemDir, { recursive: true, force: true });
 }

@@ -12,9 +12,10 @@ import adminAuthPlugin from "./plugins/admin-auth.js";
 import multipartPlugin from "./plugins/multipart.js";
 import postgresPlugin from "./plugins/postgres.js";
 import rateLimitPlugin from "./plugins/rate-limit.js";
-import adminItemsRoutes from "./routes/admin-items.js";
+import typeormPlugin from "./plugins/typeorm.js";
+import adminPluginsRoutes from "./routes/admin-plugins.js";
 import healthRoutes from "./routes/health.js";
-import itemsRoutes from "./routes/items.js";
+import pluginsRoutes from "./routes/plugins.js";
 import statsRoutes from "./routes/stats.js";
 
 export async function buildApp() {
@@ -54,19 +55,32 @@ export async function buildApp() {
   await app.register(cors, { origin: true });
 
   await app.register(postgresPlugin);
+  await app.register(typeormPlugin);
   await app.register(rateLimitPlugin);
 
   await app.register(healthRoutes);
-  await app.register(itemsRoutes, { prefix: "/v1" });
-  await app.register(statsRoutes, { prefix: "/v1" });
 
   await app.register(
-    async (adminScope) => {
-      await adminScope.register(adminAuthPlugin);
-      await adminScope.register(multipartPlugin);
-      await adminScope.register(adminItemsRoutes);
+    async (v1Scope) => {
+      // Один статический токен на self-hosted-инстанс проверяется на ВСЕХ /v1/* эндпоинтах, включая
+      // публичное чтение, а не только admin/write — поэтому auth регистрируется
+      // прямо в v1Scope, а не только во вложенном /v1/admin. adminAuthPlugin обёрнут в fp(), поэтому его
+      // onRequest-хук поднимается ровно до v1Scope и оттуда наследуется всеми дочерними register()-вызовами
+      // ниже, включая statsRoutes/pluginsRoutes и вложенный adminScope.
+      await v1Scope.register(adminAuthPlugin);
+
+      await v1Scope.register(statsRoutes);
+      await v1Scope.register(pluginsRoutes);
+
+      await v1Scope.register(
+        async (adminScope) => {
+          await adminScope.register(multipartPlugin);
+          await adminScope.register(adminPluginsRoutes);
+        },
+        { prefix: "/admin" },
+      );
     },
-    { prefix: "/v1/admin" },
+    { prefix: "/v1" },
   );
 
   return app;

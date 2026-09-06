@@ -3,5 +3,5 @@ dist/
 .env
 *.log
 
-registry/items/*
-!registry/items/.gitkeep
+registry/plugins/*
+!registry/plugins/.gitkeep
