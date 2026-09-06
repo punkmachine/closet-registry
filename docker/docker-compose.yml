@@ -1,0 +1,85 @@
+services:
+  traefik:
+    image: traefik:v3
+    container_name: closet-ai-traefik
+    restart: unless-stopped
+    command:
+      - "--configFile=/etc/traefik/traefik.yml"
+      - "--certificatesresolvers.le.acme.email=${ACME_EMAIL}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - traefik_acme:/letsencrypt
+    networks:
+      - public
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: closet-ai-api
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-closet_ai}
+      PORT: ${PORT:-3000}
+    volumes:
+      - registry_items:/app/registry/items
+    networks:
+      - public
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "node -e \"fetch('http://localhost:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=public"
+      - "traefik.http.services.closet-ai-api.loadbalancer.server.port=${PORT:-3000}"
+      - "traefik.http.routers.closet-ai-api.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.closet-ai-api.entrypoints=websecure"
+      - "traefik.http.routers.closet-ai-api.tls=true"
+      - "traefik.http.routers.closet-ai-api.tls.certresolver=le"
+      - "traefik.http.routers.closet-ai-api-web.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.closet-ai-api-web.entrypoints=web"
+
+  postgres:
+    image: postgres:18-alpine
+    container_name: closet-ai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-closet_ai}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-closet_ai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  public:
+    driver: bridge
+  internal:
+    driver: bridge
+    internal: true
+
+volumes:
+  postgres_data:
+  registry_items:
+  traefik_acme:

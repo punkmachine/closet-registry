@@ -1,0 +1,5 @@
+allowBuilds:
+  esbuild: true
+minimumReleaseAgeExclude:
+  - pg-protocol@1.16.0
+  - pg@8.23.0
