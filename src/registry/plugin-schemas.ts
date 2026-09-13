@@ -83,3 +83,17 @@ export const pluginBundleResponseSchema = z.object({
   dependencies: z.array(z.string()),
   files: z.array(pluginBundleFileSchema),
 });
+
+// GET /v1/plugins — листинг всех опубликованных плагинов (не версий): slug + latest semver.
+// Без пагинации в MVP — self-hosted реестр небольшого масштаба, добавить пагинацию можно позже
+// без breaking change (по умолчанию отдавать "первую страницу" целиком).
+export const pluginListItemSchema = z.object({
+  slug: z.string(),
+  description: z.string(),
+  latestVersion: z.string(),
+  updatedAt: z.string(),
+});
+
+export const pluginListResponseSchema = z.object({
+  plugins: z.array(pluginListItemSchema),
+});

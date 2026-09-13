@@ -3,10 +3,15 @@ import type { FastifyPluginAsyncZod } from "@fastify/type-provider-zod";
 import { readVersionFiles } from "../registry/file-store.js";
 import {
   findActiveVersionBySlugAndVersion,
+  findAllActivePluginsWithLatestVersion,
   findLatestActiveVersion,
   getDependencySlugs,
 } from "../registry/plugins-repository.js";
-import { pluginBundleResponseSchema, pluginSlugVersionParamsSchema } from "../registry/plugin-schemas.js";
+import {
+  pluginBundleResponseSchema,
+  pluginListResponseSchema,
+  pluginSlugVersionParamsSchema,
+} from "../registry/plugin-schemas.js";
 import { errorResponseSchema } from "../registry/schemas.js";
 
 function detectEncoding(content: Buffer): { encoding: "utf8" | "base64"; text: string } {
@@ -17,6 +22,31 @@ function detectEncoding(content: Buffer): { encoding: "utf8" | "base64"; text: s
 
 const pluginsRoutes: FastifyPluginAsyncZod = async (fastify) => {
   const orm = fastify.orm;
+
+  // Листинг для closet-cli list --all (plan.md, раздел 3 п.2): без query-параметров и без
+  // rate limit — как и у GET /plugins/:slug/:version, отдельного лимита на чтение нет.
+  fastify.get(
+    "/plugins",
+    {
+      schema: {
+        response: {
+          200: pluginListResponseSchema,
+          500: errorResponseSchema,
+        },
+      },
+    },
+    async (_request, reply) => {
+      const plugins = await findAllActivePluginsWithLatestVersion(orm);
+      reply.send({
+        plugins: plugins.map((plugin) => ({
+          slug: plugin.slug,
+          description: plugin.description,
+          latestVersion: plugin.latestVersion,
+          updatedAt: plugin.updatedAt.toISOString(),
+        })),
+      });
+    },
+  );
 
   fastify.get(
     "/plugins/:slug/:version",

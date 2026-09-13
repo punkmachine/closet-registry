@@ -219,6 +219,42 @@ export async function findLatestActiveVersion(dataSource: DataSource, slug: stri
   return versions.reduce((latest, candidate) => (semver.gt(candidate.version, latest.version) ? candidate : latest));
 }
 
+export interface PluginListItem {
+  slug: string;
+  description: string;
+  latestVersion: string;
+  updatedAt: Date;
+}
+
+// Один запрос с relations: versions (JOIN), не N+1 — на список плагин может быть длинным.
+// Плагины, у которых не осталось ни одной активной версии (все soft-deleted), в листинг не попадают —
+// они не устанавливаемы, показывать их как доступные было бы неверно.
+export async function findAllActivePluginsWithLatestVersion(dataSource: DataSource): Promise<PluginListItem[]> {
+  const plugins = await dataSource.getRepository(Plugin).find({
+    where: { deleted: false },
+    relations: { versions: true },
+    order: { slug: "ASC" },
+  });
+
+  const items: PluginListItem[] = [];
+  for (const plugin of plugins) {
+    const activeVersions = plugin.versions.filter((version) => !version.deleted);
+    if (activeVersions.length === 0) {
+      continue;
+    }
+
+    const latest = activeVersions.reduce((a, b) => (semver.gt(b.version, a.version) ? b : a));
+    items.push({
+      slug: plugin.slug,
+      description: plugin.description,
+      latestVersion: latest.version,
+      updatedAt: plugin.updatedAt,
+    });
+  }
+
+  return items;
+}
+
 export async function getDependencySlugs(dataSource: DataSource, pluginId: string): Promise<string[]> {
   const dependencies = await dataSource.getRepository(PluginDependency).find({
     where: { pluginId },

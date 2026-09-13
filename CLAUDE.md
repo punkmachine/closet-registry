@@ -6,8 +6,10 @@
 для CLI-инструмента `closet-cli` (лежит рядом, в `../closet-cli`). Плагин — это
 именованный (`slug`) набор версионированных файлов, сгруппированных по компонентам
 (`mcp`/`rules`/`hooks`/`agents`/`commands`/`skills`/`scripts`) и опционально по ИИ
-(`codex`/`claude-code`, либо общий файл). Есть публичное bundle-чтение версии плагина,
-admin write-эндпоинты за Bearer-токеном и эндпоинт статистики установок.
+(`codex`/`claude-code`, либо общий файл). Есть bundle-чтение версии плагина,
+листинг метаданных всех плагинов (`GET /v1/plugins`, под `closet-cli list --all`,
+добавлен 2026-09-13), admin write-эндпоинты за Bearer-токеном и эндпоинт
+статистики установок.
 
 `../closet-cli/src/registry/http-client.ts` (`HttpRegistryClient`) — уже существующий,
 но написанный под **старый** контракт (`/v1/items`, без Bearer) и с новым API этого
@@ -62,6 +64,10 @@ pnpm test                 # vitest run (тестового набора пока
   апдейт версии — в одной transaction (`dataSource.transaction`). "Последняя
   версия" (`findLatestActiveVersion`) считается через `semver.gt()` reduction по
   всем активным версиям, не через `created_at`/лексикографию.
+  `findAllActivePluginsWithLatestVersion` (добавлена 2026-09-13, под
+  `GET /v1/plugins`) делает то же для ВСЕХ плагинов сразу одним запросом
+  (`relations: { versions: true }` — JOIN, не N+1); плагины без ни одной
+  активной версии (все soft-deleted) в результат не попадают.
 - `src/registry/file-store.ts` — контент файлов хранится на диске
   (`registry/plugins/<slug>/<version>/<component>/[<ai>/]<relativePath>`), в БД —
   только метаданные (`storagePath`/`sha256`/`sizeBytes`/`rootPath`/`merge`/
