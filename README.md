@@ -1,40 +1,44 @@
 # closet-registry
 
-Self-hosted HTTP-реестр плагинов для `closet-cli` — CLI-инструмента, который устанавливает в проект пользователя файлы (`mcp`, `rules`, `hooks`, `agents`, `commands`, `skills`, `scripts`) под ИИ-агентов (`codex`, `claude-code`).
+Self-hosted HTTP-реестр плагинов для [`closet-cli`](https://github.com/punkmachine/closet-cli).
 
-## Быстрый старт (разработка)
+```bash
+git clone https://github.com/punkmachine/closet-registry.git
+cd closet-registry
+./up.sh
+```
+
+Открой http://127.0.0.1:3001 — это админка. На сервер с доменом: в `.env` укажи `DOMAIN` и `ACME_EMAIL`, затем `./up.sh --tls`. Подробности в [DEPLOY.md](DEPLOY.md).
+
+`closet-cli.json`:
+
+```json
+{
+  "registry": {
+    "url": "http://127.0.0.1:3000",
+    "token": "<ADMIN_TOKEN из .env>"
+  }
+}
+```
+
+## Разработка
+
+Node 22+, pnpm 11, Postgres на localhost.
 
 ```bash
 pnpm install
-cp .env.example .env   # заполнить DATABASE_URL и ADMIN_TOKEN
+cp .env.example .env
 pnpm migration:run
 pnpm dev
 ```
 
-`GET /health` — не требует токена. Все `/v1/*` эндпоинты (в том числе чтение) требуют `Authorization: Bearer <ADMIN_TOKEN>`.
-
-## Деплой (Docker)
-
-```bash
-cd docker
-docker compose --env-file ../.env up -d --build
-```
-
-`docker-compose.yml` поднимает три сервиса: `postgres`, `api` и `traefik` (реверс-прокси с автоматическим TLS через ACME/Let's Encrypt). Для `traefik` нужен реальный публичный домен, указанный в `DOMAIN`, и доступные извне порты 80/443 — без этого сервис не сможет выпустить сертификат. `postgres` и `api` можно поднять и без `traefik` для теста:
-
-```bash
-docker compose --env-file ../.env up -d --build postgres api
-```
-
-После первого запуска накатить миграции внутри контейнера:
-
-```bash
-docker compose exec api node dist/db/run-migrations.js
-```
+`GET /health` без токена. Все `/v1/*` — `Authorization: Bearer <ADMIN_TOKEN>`.
 
 ## API
 
-- `GET /health` — без авторизации, проверка живости + доступности БД.
-- `GET /v1/plugins/:slug/:version` — bundle-чтение: метаданные версии плагина и содержимое всех её файлов одним ответом (`version` может быть `"latest"`).
-- `POST /v1/stats/installs` — фиксация факта установки плагина (`{ slug, version, cliVersion }`).
-- `POST/PUT/DELETE /v1/admin/plugins...` — публикация, обновление и (мягкое) удаление версий/плагинов, `multipart/form-data`.
+- `GET /health`
+- `GET /v1/plugins`
+- `GET /v1/plugins/:slug/versions`
+- `GET /v1/plugins/:slug/:version` — bundle, `version` может быть `latest`
+- `POST /v1/stats/installs`
+- `POST/PUT/DELETE /v1/admin/plugins...` — `multipart/form-data`

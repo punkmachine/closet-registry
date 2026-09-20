@@ -1,0 +1,24 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode gzip
+
+	# closet-cli и healthcheck ходят сюда. Bearer-токен проверяет сам API —
+	# Basic Auth на эти пути вешать нельзя, иначе CLI не сможет работать.
+	handle /health {
+		reverse_proxy api:3000
+	}
+
+	handle /v1/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		basic_auth {
+			__ADMIN_BASIC_USER__ __ADMIN_BASIC_HASH__
+		}
+		reverse_proxy admin:3000
+	}
+}

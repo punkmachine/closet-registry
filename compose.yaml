@@ -1,0 +1,153 @@
+# Self-host: из корня репозитория, рядом с .env (Compose подхватывает его сам).
+#
+#   docker compose up -d                  # локально / свой прокси: localhost:3000 и :3001
+#   docker compose --profile tls up -d    # VPS: один домен, HTTPS, Basic Auth на админку
+#
+# Образы по умолчанию с GHCR. Если их ещё нет или вы меняете код — добавьте --build.
+name: closet-registry
+
+x-api-image: &api-image
+  image: ghcr.io/punkmachine/closet-registry-api:${CLOSET_VERSION:-latest}
+  build:
+    context: .
+    dockerfile: docker/registry.Dockerfile
+  pull_policy: missing
+
+x-admin-image: &admin-image
+  image: ghcr.io/punkmachine/closet-registry-admin:${CLOSET_VERSION:-latest}
+  build:
+    context: .
+    dockerfile: docker/admin-panel.Dockerfile
+  pull_policy: missing
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-closet_registry}
+    # Postgres только внутри Docker. Наружу не публикуем — не конфликтует
+    # с локальным Postgres и не торчит даже на localhost.
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-closet_registry}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Одноразовый прогон: Exited (0) — это успех, не ошибка. Отдельный сервис, а не
+  # entrypoint api, чтобы две реплики api не накатывали миграции параллельно.
+  migrate:
+    <<: *api-image
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-closet_registry}
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["node", "dist/db/run-migrations.js"]
+
+  api:
+    <<: *api-image
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-closet_registry}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN is required}
+      REGISTRY_STORAGE_DIR: /data/plugins
+    ports:
+      - "127.0.0.1:${API_PORT:-3000}:3000"
+    volumes:
+      # В БД только метаданные. Потерять этот том = потерять содержимое плагинов.
+      - registry_plugins:/data/plugins
+    networks:
+      - default
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "node -e \"fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  admin:
+    <<: *admin-image
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      # Внутреннее DNS-имя сервиса: трафик не выходит в интернет и не зависит от TLS.
+      REGISTRY_URL: http://api:3000
+      # Токен видит только Nitro-прокси (server/api/**), в браузерный бандл он не попадает.
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN is required}
+    ports:
+      - "127.0.0.1:${ADMIN_PORT:-3001}:3000"
+    networks:
+      - default
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "node -e \"fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # Не стартует без `--profile tls`. Слушает 80/443, выпускает Let's Encrypt,
+  # `/v1` и `/health` → api без Basic Auth, всё остальное → admin с Basic Auth.
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["tls"]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+      ADMIN_BASIC_USER: ${ADMIN_BASIC_USER:-admin}
+      ADMIN_BASIC_PASSWORD: ${ADMIN_BASIC_PASSWORD:-}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile.tpl:ro
+      - ./docker/caddy-entrypoint.sh:/entrypoint.sh:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    networks:
+      - default
+    depends_on:
+      api:
+        condition: service_healthy
+      admin:
+        condition: service_healthy
+
+networks:
+  internal:
+    driver: bridge
+    internal: true
+
+volumes:
+  postgres_data:
+  registry_plugins:
+  caddy_data:
+  caddy_config:
