@@ -1,0 +1,30 @@
+# Контекст сборки — корень монорепо, поэтому мусор надо отсекать явно:
+# без этого в образ уезжают node_modules хоста (симлинки pnpm, битые внутри контейнера)
+# и результаты локальных сборок.
+node_modules
+**/node_modules
+
+dist
+**/dist
+.output
+**/.output
+.nuxt
+**/.nuxt
+.data
+**/.data
+
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# Содержимое плагинов в контейнере живёт на томе (REGISTRY_STORAGE_DIR), не в образе
+apps/registry/registry/plugins
+
+*.log
+.DS_Store
+docker
+DEPLOY.md
+README.md
+CLAUDE.md

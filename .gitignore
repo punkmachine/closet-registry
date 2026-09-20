@@ -2,6 +2,15 @@ node_modules/
 dist/
 .env
 *.log
+.DS_Store
 
-registry/plugins/*
-!registry/plugins/.gitkeep
+# Nuxt (apps/admin-panel)
+.nuxt/
+.output/
+.data/
+.nitro/
+.cache/
+
+# Содержимое файлов плагинов — данные инстанса, не исходники
+apps/registry/registry/plugins/*
+!apps/registry/registry/plugins/.gitkeep
