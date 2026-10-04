@@ -58,7 +58,9 @@ export class CreatePluginRegistrySchema1788678999355 implements MigrationInterfa
         PRIMARY KEY ("plugin_id", "depends_on_plugin_id")
       );
     `);
-    await queryRunner.query(`CREATE INDEX "idx_plugin_dependencies_depends_on_plugin_id" ON "plugin_dependencies" ("depends_on_plugin_id");`);
+    await queryRunner.query(
+      `CREATE INDEX "idx_plugin_dependencies_depends_on_plugin_id" ON "plugin_dependencies" ("depends_on_plugin_id");`,
+    );
 
     await queryRunner.query(`
       CREATE TABLE "install_events" (
@@ -70,7 +72,9 @@ export class CreatePluginRegistrySchema1788678999355 implements MigrationInterfa
       );
     `);
     await queryRunner.query(`CREATE INDEX "idx_install_events_plugin_id" ON "install_events" ("plugin_id");`);
-    await queryRunner.query(`CREATE INDEX "idx_install_events_plugin_version_id" ON "install_events" ("plugin_version_id");`);
+    await queryRunner.query(
+      `CREATE INDEX "idx_install_events_plugin_version_id" ON "install_events" ("plugin_version_id");`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

@@ -1,7 +1,7 @@
 import { DefaultNamingStrategy, type NamingStrategyInterface } from "typeorm";
 
 function toSnakeCase(value: string): string {
-  return value.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+  return value.replaceAll(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
 }
 
 /**

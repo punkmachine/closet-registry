@@ -8,9 +8,8 @@ import {
 } from "@closet/contract";
 import type { FastifyPluginAsyncZod } from "@fastify/type-provider-zod";
 import { z } from "zod";
-
-import { PathTraversalError, writeVersionFiles } from "../registry/file-store.js";
 import type { PluginFileUpload } from "../registry/file-store.js";
+import { PathTraversalError, writeVersionFiles } from "../registry/file-store.js";
 import { collectMultipartParts, formatZodError, parseMetadataJson } from "../registry/multipart-helpers.js";
 import type { PluginFileInsert } from "../registry/plugins-repository.js";
 import {

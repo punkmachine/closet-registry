@@ -1,3 +1,3 @@
 export default defineEventHandler(async (event) => {
-  return proxyMultipart(event, "/admin/plugins", "POST");
+  return await proxyMultipart(event, "/admin/plugins", "POST");
 });

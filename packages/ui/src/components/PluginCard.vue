@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { PluginListItem } from "@closet/contract";
-import { computed, type Component } from "vue";
+import { type Component, computed } from "vue";
 
 import { formatDate } from "../format";
 

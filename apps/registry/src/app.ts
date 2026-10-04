@@ -5,8 +5,8 @@ import {
   serializerCompiler,
   validatorCompiler,
 } from "@fastify/type-provider-zod";
+import type { FastifyError, FastifyInstance } from "fastify";
 import Fastify from "fastify";
-import type { FastifyError } from "fastify";
 
 import adminAuthPlugin from "./plugins/admin-auth.js";
 import multipartPlugin from "./plugins/multipart.js";
@@ -18,12 +18,9 @@ import healthRoutes from "./routes/health.js";
 import pluginsRoutes from "./routes/plugins.js";
 import statsRoutes from "./routes/stats.js";
 
-export async function buildApp() {
+export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
-    logger:
-      process.env.NODE_ENV === "production"
-        ? true
-        : { transport: { target: "pino-pretty" } },
+    logger: process.env.NODE_ENV === "production" ? true : { transport: { target: "pino-pretty" } },
   });
 
   app.setValidatorCompiler(validatorCompiler);
@@ -83,5 +80,5 @@ export async function buildApp() {
     { prefix: "/v1" },
   );
 
-  return app;
+  return await app;
 }

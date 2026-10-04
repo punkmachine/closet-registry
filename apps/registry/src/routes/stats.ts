@@ -1,8 +1,7 @@
+import { errorResponseSchema, statsInstallBodySchema, statsInstallResponseSchema } from "@closet/contract";
 import type { FastifyPluginAsyncZod } from "@fastify/type-provider-zod";
-
 import { recordInstall } from "../db/stats-repository.js";
 import { findActiveVersionBySlugAndVersion } from "../registry/plugins-repository.js";
-import { errorResponseSchema, statsInstallBodySchema, statsInstallResponseSchema } from "@closet/contract";
 
 const statsRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.post(

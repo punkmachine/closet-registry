@@ -40,7 +40,14 @@ export interface PluginFileRead extends PluginFileLocation {
 // они попадают и мимо них, поэтому результат дополнительно проверяется через path.relative
 // (буква диска на Windows-хосте вроде "C:" иначе разрешается в корень диска).
 function assertSafeSlugSegment(value: string): string {
-  if (value.length === 0 || value.includes("\0") || value.includes("/") || value.includes("\\") || value === "." || value === "..") {
+  if (
+    value === "." ||
+    value === ".." ||
+    value.length === 0 ||
+    value.includes("\0") ||
+    value.includes("/") ||
+    value.includes("\\")
+  ) {
     throw new PathTraversalError(value);
   }
 
@@ -96,7 +103,9 @@ export async function writeVersionFiles(
 
   const written: PluginFileWritten[] = [];
   for (const { file, target } of targets) {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- // путь уже прошёл resolveSafePath()
     await fs.mkdir(path.dirname(target), { recursive: true });
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- // путь уже прошёл resolveSafePath()
     await fs.writeFile(target, file.content);
     written.push({
       component: file.component,
@@ -117,9 +126,10 @@ export async function readVersionFiles(
   files: PluginFileLocation[],
 ): Promise<PluginFileRead[]> {
   const versionDir = getPluginVersionDir(pluginSlug, version);
-  return Promise.all(
+  return await Promise.all(
     files.map(async (file) => {
       const target = resolveSafePath(versionDir, buildStorageRelativePath(file.component, file.ai, file.relativePath));
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- // путь уже прошёл resolveSafePath()
       const content = await fs.readFile(target);
       return { ...file, content };
     }),

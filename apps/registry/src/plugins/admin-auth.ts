@@ -22,14 +22,14 @@ const adminAuthPluginImpl: FastifyPluginAsync = async (fastify) => {
     }
 
     const tokenBuffer = Buffer.from(token);
-    const isValid =
-      tokenBuffer.length === adminTokenBuffer.length &&
-      timingSafeEqual(tokenBuffer, adminTokenBuffer);
+    const isValid = tokenBuffer.length === adminTokenBuffer.length && timingSafeEqual(tokenBuffer, adminTokenBuffer);
 
-    if (!isValid) {
-      reply.code(401).send({ error: "Unauthorized" });
+    if (isValid) {
       return;
     }
+
+    reply.code(401).send({ error: "Unauthorized" });
+    return;
   });
 };
 

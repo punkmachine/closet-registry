@@ -11,12 +11,12 @@ import {
 import { ComponentBadge, formatBytes } from "@closet/ui";
 import {
   emptyTextFormFile,
+  type FormFile,
   formFileFromBrowserFile,
   formFileFromBundleFile,
+  type PluginFormValues,
   suggestMergeKeyPath,
   validateForm,
-  type FormFile,
-  type PluginFormValues,
 } from "~/utils/plugin-files";
 
 const props = defineProps<{

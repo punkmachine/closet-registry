@@ -54,10 +54,10 @@ export async function registryFetch<T>(event: H3Event, path: string, options: Re
       headers,
       body: options.body,
     });
-  } catch (cause) {
+  } catch (error) {
     throw createError({
       statusCode: 502,
-      message: `Реестр недоступен по адресу ${baseUrl}: ${cause instanceof Error ? cause.message : String(cause)}`,
+      message: `Реестр недоступен по адресу ${baseUrl}: ${error instanceof Error ? error.message : String(error)}`,
     });
   }
 
@@ -65,15 +65,18 @@ export async function registryFetch<T>(event: H3Event, path: string, options: Re
     throw createError({ statusCode: response.status, message: await extractErrorMessage(response) });
   }
 
-  if (response.status === 204 || response.headers.get("content-length") === "0") {
-    return undefined as T;
-  }
-
-  return (await response.json()) as T;
+  return response.status === 204 || response.headers.get("content-length") === "0"
+    ? (undefined as T)
+    : ((await response.json()) as T);
 }
 
 async function extractErrorMessage(response: Response): Promise<string> {
-  const text = await response.text().catch(() => "");
+  let text = "";
+  try {
+    text = await response.text();
+  } catch {
+    // тело ответа нечитаемо — отдаём сообщение по статусу
+  }
   if (!text) {
     return `Реестр ответил ${response.status}`;
   }
@@ -106,5 +109,5 @@ export async function proxyMultipart<T>(event: H3Event, path: string, method: "P
     throw createError({ statusCode: 400, message: "Пустое тело запроса" });
   }
 
-  return registryFetch<T>(event, path, { method, body: new Uint8Array(body), contentType });
+  return await registryFetch<T>(event, path, { method, body: new Uint8Array(body), contentType });
 }

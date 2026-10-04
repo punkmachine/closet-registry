@@ -9,11 +9,7 @@ export function formatBytes(bytes: number | string): string {
     return `${value} B`;
   }
 
-  if (value < 1024 * 1024) {
-    return `${(value / 1024).toFixed(1)} KB`;
-  }
-
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  return value < 1024 * 1024 ? `${(value / 1024).toFixed(1)} KB` : `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function formatDate(iso: string): string {

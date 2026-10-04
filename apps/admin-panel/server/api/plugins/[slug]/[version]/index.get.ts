@@ -8,5 +8,8 @@ export default defineEventHandler(async (event) => {
   }
 
   // version может быть литералом "latest" — это поддерживает сам реестр.
-  return registryFetch<PluginBundle>(event, `/plugins/${encodeURIComponent(slug)}/${encodeURIComponent(version)}`);
+  return await registryFetch<PluginBundle>(
+    event,
+    `/plugins/${encodeURIComponent(slug)}/${encodeURIComponent(version)}`,
+  );
 });

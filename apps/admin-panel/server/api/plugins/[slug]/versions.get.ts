@@ -6,5 +6,5 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: "Не указан slug плагина" });
   }
 
-  return registryFetch<PluginVersionListResponse>(event, `/plugins/${encodeURIComponent(slug)}/versions`);
+  return await registryFetch<PluginVersionListResponse>(event, `/plugins/${encodeURIComponent(slug)}/versions`);
 });

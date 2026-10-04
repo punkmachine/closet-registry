@@ -9,6 +9,7 @@ import { config } from "dotenv";
 function findWorkspaceRoot(startDir: string): string | null {
   let current = startDir;
   for (let depth = 0; depth < 5; depth += 1) {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- путь из process.cwd(), не из пользовательского ввода
     if (existsSync(path.join(current, "pnpm-workspace.yaml"))) {
       return current;
     }
@@ -25,6 +26,7 @@ const cwd = process.cwd();
 const workspaceRoot = findWorkspaceRoot(cwd);
 
 for (const candidate of [path.join(cwd, ".env"), workspaceRoot ? path.join(workspaceRoot, ".env") : null]) {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- путь из process.cwd(), не из пользовательского ввода
   if (candidate && existsSync(candidate)) {
     config({ path: candidate, quiet: true });
   }

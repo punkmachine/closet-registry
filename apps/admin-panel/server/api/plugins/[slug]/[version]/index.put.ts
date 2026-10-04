@@ -6,5 +6,9 @@ export default defineEventHandler(async (event) => {
   }
 
   // PUT в реестре — full replace: тело должно содержать полный набор файлов и зависимостей версии.
-  return proxyMultipart(event, `/admin/plugins/${encodeURIComponent(slug)}/${encodeURIComponent(version)}`, "PUT");
+  return await proxyMultipart(
+    event,
+    `/admin/plugins/${encodeURIComponent(slug)}/${encodeURIComponent(version)}`,
+    "PUT",
+  );
 });

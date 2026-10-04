@@ -92,20 +92,21 @@ export function classifyPath(rawPath: string): {
     const isLast = index === segments.length - 1;
     const key = segment.toLowerCase();
 
-    if (!isLast && component === null && COMPONENT_ALIASES[key]) {
-      component = COMPONENT_ALIASES[key];
+    // Object.hasOwn: сегмент пути вида "constructor" не должен находиться в прототипе словаря
+    const componentAlias = Object.hasOwn(COMPONENT_ALIASES, key) ? COMPONENT_ALIASES[key] : undefined;
+    if (!isLast && component === null && componentAlias) {
+      component = componentAlias;
       continue;
     }
-    if (!isLast && ai === null && AI_ALIASES[key]) {
-      ai = AI_ALIASES[key];
+    const aiAlias = Object.hasOwn(AI_ALIASES, key) ? AI_ALIASES[key] : undefined;
+    if (!isLast && ai === null && aiAlias) {
+      ai = aiAlias;
       continue;
     }
     rest.push(segment);
   }
 
-  if (component === null) {
-    component = guessComponentByFileName(fileName);
-  }
+  component ??= guessComponentByFileName(fileName);
 
   return { component, ai, relativePath: rest.join("/") || fileName };
 }
@@ -129,15 +130,18 @@ function guessComponentByFileName(fileName: string): PluginComponent {
 /** Подсказка mergeKeyPath: слот именуется по файлу, чтобы плагины не перетирали друг друга. */
 export function suggestMergeKeyPath(component: PluginComponent, relativePath: string): string {
   const base = (relativePath.split(/[\\/]/).at(-1) ?? relativePath).replace(/\.[^.]+$/, "");
-  const slotName = base.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "closet";
+  const slotName = base.replaceAll(/[^a-zA-Z0-9_-]+/g, "-").replaceAll(/^-+|-+$/g, "") || "closet";
 
   switch (component) {
-    case "mcp":
+    case "mcp": {
       return `mcpServers.${slotName}`;
-    case "hooks":
+    }
+    case "hooks": {
       return "hooks.PostToolUse[]";
-    default:
+    }
+    default: {
       return slotName;
+    }
   }
 }
 
@@ -154,7 +158,7 @@ function base64ToBytes(base64: string): Uint8Array {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
+    bytes[i] = binary.codePointAt(i) ?? 0;
   }
   return bytes;
 }
@@ -285,7 +289,7 @@ export function buildFormData(values: PluginFormValues): FormData {
     rootPath: file.rootPath,
     merge: file.merge,
     template: file.template,
-    ...(file.merge ? { mergeKeyPath: file.mergeKeyPath.trim() } : {}),
+    ...(file.merge && { mergeKeyPath: file.mergeKeyPath.trim() }),
   }));
 
   const metadata: PluginPublishMetadata = {
@@ -294,7 +298,7 @@ export function buildFormData(values: PluginFormValues): FormData {
     version: values.version,
     dependencies: values.dependencies,
     files,
-    ...(values.changelog.trim() ? { changelog: values.changelog.trim() } : {}),
+    ...(values.changelog.trim() && { changelog: values.changelog.trim() }),
   };
 
   const formData = new FormData();
@@ -309,4 +313,4 @@ export function buildFormData(values: PluginFormValues): FormData {
   return formData;
 }
 
-export { COMPONENT_SET, AI_SET };
+export { AI_SET, COMPONENT_SET };

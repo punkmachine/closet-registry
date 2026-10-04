@@ -3,7 +3,7 @@
  * это healthcheck контейнера admin-panel, и падение реестра не должно перезапускать админку.
  * Состояние реестра отдаётся отдельным полем и показывается в шапке интерфейса.
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async () => {
   const baseUrl = (process.env.NUXT_REGISTRY_URL || process.env.REGISTRY_URL || "http://127.0.0.1:3000").replace(
     /\/+$/,
     "",

@@ -1,10 +1,10 @@
+import type { PluginComponent, PluginFileAi } from "@closet/contract";
 import semver from "semver";
 import type { DataSource, EntityManager } from "typeorm";
 import { In } from "typeorm";
-import type { PluginComponent, PluginFileAi } from "@closet/contract";
-import { PluginFile } from "../db/entities/plugin-file.entity.js";
-import { PluginDependency } from "../db/entities/plugin-dependency.entity.js";
 import { Plugin } from "../db/entities/plugin.entity.js";
+import { PluginDependency } from "../db/entities/plugin-dependency.entity.js";
+import { PluginFile } from "../db/entities/plugin-file.entity.js";
 import { PluginVersion } from "../db/entities/plugin-version.entity.js";
 
 export class PluginVersionConflictError extends Error {
@@ -62,8 +62,12 @@ export async function findMissingDependencySlugs(dataSource: DataSource, slugs: 
   return slugs.filter((slug) => !existing.has(slug));
 }
 
-export async function findAnyVersion(dataSource: DataSource, slug: string, version: string): Promise<PluginVersion | null> {
-  return dataSource.getRepository(PluginVersion).findOne({
+export async function findAnyVersion(
+  dataSource: DataSource,
+  slug: string,
+  version: string,
+): Promise<PluginVersion | null> {
+  return await dataSource.getRepository(PluginVersion).findOne({
     where: { version, plugin: { slug } },
     relations: { plugin: true },
   });
@@ -78,10 +82,14 @@ async function upsertPluginRecord(manager: EntityManager, slug: string, descript
   // иначе slug навсегда становится непереиспользуемым после soft delete.
   plugin.deleted = false;
   plugin.deletedAt = null;
-  return pluginRepo.save(plugin);
+  return await pluginRepo.save(plugin);
 }
 
-async function replacePluginDependencies(manager: EntityManager, plugin: Plugin, dependencySlugs: string[]): Promise<void> {
+async function replacePluginDependencies(
+  manager: EntityManager,
+  plugin: Plugin,
+  dependencySlugs: string[],
+): Promise<void> {
   const dependencyRepo = manager.getRepository(PluginDependency);
   await dependencyRepo.delete({ pluginId: plugin.id });
 
@@ -96,16 +104,24 @@ async function replacePluginDependencies(manager: EntityManager, plugin: Plugin,
   await dependencyRepo.save(dependencies.map((dependsOn) => dependencyRepo.create({ plugin, dependsOn })));
 }
 
-async function replaceVersionFiles(manager: EntityManager, version: PluginVersion, files: PluginFileInsert[]): Promise<PluginFile[]> {
+async function replaceVersionFiles(
+  manager: EntityManager,
+  version: PluginVersion,
+  files: PluginFileInsert[],
+): Promise<PluginFile[]> {
   const fileRepo = manager.getRepository(PluginFile);
   // Прямой filter по колонке version_id через query builder, а не delete({ version })
   // — избегаем неоднозначности FindOptionsWhere с relation-объектом на write-пути.
   await fileRepo.createQueryBuilder().delete().where("version_id = :versionId", { versionId: version.id }).execute();
   const entities = fileRepo.create(files.map((file) => ({ ...file, version })));
-  return fileRepo.save(entities);
+  return await fileRepo.save(entities);
 }
 
-export function toPluginVersionResult(plugin: Plugin, version: PluginVersion, dependencySlugs: string[]): PluginVersionResult {
+export function toPluginVersionResult(
+  plugin: Plugin,
+  version: PluginVersion,
+  dependencySlugs: string[],
+): PluginVersionResult {
   return {
     slug: plugin.slug,
     description: plugin.description,
@@ -131,7 +147,7 @@ export async function publishPluginVersion(
   dataSource: DataSource,
   input: PluginVersionWriteInput,
 ): Promise<{ plugin: Plugin; version: PluginVersion }> {
-  return dataSource.transaction(async (manager) => {
+  return await dataSource.transaction(async (manager) => {
     const plugin = await upsertPluginRecord(manager, input.slug, input.description);
 
     const versionRepo = manager.getRepository(PluginVersion);
@@ -156,7 +172,7 @@ export async function upsertPluginVersion(
   dataSource: DataSource,
   input: PluginVersionWriteInput,
 ): Promise<{ plugin: Plugin; version: PluginVersion }> {
-  return dataSource.transaction(async (manager) => {
+  return await dataSource.transaction(async (manager) => {
     const plugin = await upsertPluginRecord(manager, input.slug, input.description);
 
     await replacePluginDependencies(manager, plugin, input.dependencySlugs);
@@ -177,8 +193,12 @@ export async function upsertPluginVersion(
   });
 }
 
-export async function softDeleteVersion(dataSource: DataSource, slug: string, version: string): Promise<PluginVersion | null> {
-  return dataSource.transaction(async (manager) => {
+export async function softDeleteVersion(
+  dataSource: DataSource,
+  slug: string,
+  version: string,
+): Promise<PluginVersion | null> {
+  return await dataSource.transaction(async (manager) => {
     const versionRepo = manager.getRepository(PluginVersion);
     const found = await versionRepo.findOne({
       where: { version, deleted: false, plugin: { slug, deleted: false } },
@@ -190,7 +210,7 @@ export async function softDeleteVersion(dataSource: DataSource, slug: string, ve
 
     found.deleted = true;
     found.deletedAt = new Date();
-    return versionRepo.save(found);
+    return await versionRepo.save(found);
   });
 }
 
@@ -199,7 +219,7 @@ export async function findActiveVersionBySlugAndVersion(
   slug: string,
   version: string,
 ): Promise<PluginVersion | null> {
-  return dataSource.getRepository(PluginVersion).findOne({
+  return await dataSource.getRepository(PluginVersion).findOne({
     where: { version, deleted: false, plugin: { slug, deleted: false } },
     relations: { plugin: true, files: true },
   });
@@ -212,11 +232,9 @@ export async function findLatestActiveVersion(dataSource: DataSource, slug: stri
     relations: { plugin: true, files: true },
   });
 
-  if (versions.length === 0) {
-    return null;
-  }
-
-  return versions.reduce((latest, candidate) => (semver.gt(candidate.version, latest.version) ? candidate : latest));
+  return versions.length === 0
+    ? null
+    : versions.reduce((latest, candidate) => (semver.gt(candidate.version, latest.version) ? candidate : latest));
 }
 
 export interface PluginListItem {
@@ -289,7 +307,7 @@ export async function findActiveVersionsBySlug(
       updatedAt: version.updatedAt,
       fileCount: version.files.length,
     }))
-    .sort((a, b) => semver.rcompare(a.version, b.version));
+    .toSorted((a, b) => semver.rcompare(a.version, b.version));
 }
 
 export async function getDependencySlugs(dataSource: DataSource, pluginId: string): Promise<string[]> {
@@ -302,7 +320,7 @@ export async function getDependencySlugs(dataSource: DataSource, pluginId: strin
 }
 
 export async function softDeletePlugin(dataSource: DataSource, slug: string): Promise<Plugin | null> {
-  return dataSource.transaction(async (manager) => {
+  return await dataSource.transaction(async (manager) => {
     const pluginRepo = manager.getRepository(Plugin);
     const versionRepo = manager.getRepository(PluginVersion);
 

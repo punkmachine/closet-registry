@@ -1,4 +1,14 @@
-import { Column, CreateDateColumn, Entity, Index, ManyToOne, OneToMany, PrimaryGeneratedColumn, Unique, UpdateDateColumn } from "typeorm";
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  Unique,
+  UpdateDateColumn,
+} from "typeorm";
 import type { Plugin } from "./plugin.entity.js";
 import { PluginFile } from "./plugin-file.entity.js";
 
@@ -30,6 +40,9 @@ export class PluginVersion {
   @UpdateDateColumn({ type: "timestamptz" })
   declare updatedAt: Date;
 
-  @OneToMany(() => PluginFile, (file) => file.version)
+  @OneToMany(
+    () => PluginFile,
+    (file) => file.version,
+  )
   declare files: PluginFile[];
 }

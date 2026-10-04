@@ -1,5 +1,5 @@
-import { Check, Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, Unique } from "typeorm";
 import type { PluginComponent, PluginFileAi } from "@closet/contract";
+import { Check, Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, Unique } from "typeorm";
 import type { PluginVersion } from "./plugin-version.entity.js";
 
 @Entity({ name: "plugin_files" })

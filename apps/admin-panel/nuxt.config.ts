@@ -25,7 +25,7 @@ export default defineNuxtConfig({
       title: "closet-registry · admin",
       htmlAttrs: { lang: "ru" },
       meta: [
-        { charset: "utf-8" },
+        { charset: "utf8" },
         { name: "viewport", content: "width=device-width, initial-scale=1" },
         { name: "robots", content: "noindex, nofollow" },
       ],

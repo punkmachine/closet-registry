@@ -8,7 +8,11 @@ export function errorMessage(error: unknown): string {
     return "Неизвестная ошибка";
   }
 
-  const candidate = error as { data?: { message?: unknown; error?: unknown }; statusMessage?: unknown; message?: unknown };
+  const candidate = error as {
+    data?: { message?: unknown; error?: unknown };
+    statusMessage?: unknown;
+    message?: unknown;
+  };
 
   for (const value of [candidate.data?.message, candidate.data?.error, candidate.statusMessage, candidate.message]) {
     if (typeof value === "string" && value.length > 0) {
@@ -16,5 +20,6 @@ export function errorMessage(error: unknown): string {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string -- последний фолбэк для неизвестной формы ошибки
   return String(error);
 }

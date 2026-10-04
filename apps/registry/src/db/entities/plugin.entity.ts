@@ -25,12 +25,21 @@ export class Plugin {
   @UpdateDateColumn({ type: "timestamptz" })
   declare updatedAt: Date;
 
-  @OneToMany(() => PluginVersion, (version) => version.plugin)
+  @OneToMany(
+    () => PluginVersion,
+    (version) => version.plugin,
+  )
   declare versions: PluginVersion[];
 
-  @OneToMany(() => PluginDependency, (dependency) => dependency.plugin)
+  @OneToMany(
+    () => PluginDependency,
+    (dependency) => dependency.plugin,
+  )
   declare dependencies: PluginDependency[];
 
-  @OneToMany(() => PluginDependency, (dependency) => dependency.dependsOn)
+  @OneToMany(
+    () => PluginDependency,
+    (dependency) => dependency.dependsOn,
+  )
   declare dependents: PluginDependency[];
 }
