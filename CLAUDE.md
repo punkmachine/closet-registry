@@ -57,6 +57,23 @@ pnpm test                 # vitest run (тестового набора пока
 миграции нужно руками добавить и в `src/db/migrations/`, и в массив `migrations`
 в `src/db/data-source.ts` — авто-обнаружения по маске пути нет.
 
+## Форматирование и линтинг
+
+- **Форматтер — Biome** (`biome.json` в корне, `lineWidth: 120`, линтер Biome выключен);
+  `pnpm format` / `pnpm format:check`. Prettier в зависимостях быть не должен.
+- **Линтер — ESLint 10 + typescript-eslint (`strictTypeChecked`, `projectService`)** на весь
+  монорепо, конфиг — `eslint.config.ts`; `pnpm lint` / `pnpm lint:fix`. Проверяются только `*.ts`:
+  `.vue` не линтится (нужен `vue-eslint-parser`). `eslint-plugin-n` и `eslint-plugin-security` —
+  только `apps/registry`; `eslint-plugin-import` установлен, но не подключён.
+  Исключения оформляются `eslint-disable-next-line ... -- причина`.
+- **TypeScript везде 5.9** (одна запись `typescript` в `catalog` в `pnpm-workspace.yaml`):
+  `typescript-eslint` не работает с TS 7 (нет старого JS API), поэтому registry понижен с 7.0.
+  Не возвращать TS 7, пока typescript-eslint его не поддержит.
+- Git-хуки (`simple-git-hooks` + `nano-staged`): pre-commit гоняет `biome check --write` и
+  `eslint --fix` по staged-файлам, pre-push — `format:check`, `lint`, `typecheck`, `test`.
+- `pnpm typecheck` в `apps/admin-panel` сейчас падает на 3 ошибках, существовавших до этапа 02
+  (`$fetch` method `PUT`/`DELETE` в `edit.vue`/`index.vue`, `BlobPart` в `plugin-files.ts`).
+
 ## Архитектура
 
 - `src/server.ts` — точка входа: `dotenv/config`, `buildApp()` на `0.0.0.0:$PORT`.

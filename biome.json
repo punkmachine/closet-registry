@@ -1,0 +1,26 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": ["**", "!**/dist", "!**/.nuxt", "!**/.output", "!**/registry/plugins/**", "!pnpm-lock.yaml"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always"
+    }
+  },
+  "json": { "formatter": { "enabled": true, "expand": "auto" } },
+  "css": { "formatter": { "enabled": true } },
+  "html": { "experimentalFullSupportEnabled": true },
+  "linter": { "enabled": false }
+}
