@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PluginBundle, PluginListResponse } from "~~/shared/types/registry";
+import type { PluginBundle, PluginListResponse } from "@closet/contract";
 import { buildFormData, type PluginFormValues } from "~/utils/plugin-files";
 
 const route = useRoute();

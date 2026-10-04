@@ -1,4 +1,4 @@
-import type { PluginVersionListResponse } from "~~/shared/types/registry";
+import type { PluginVersionListResponse } from "@closet/contract";
 
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, "slug", { decode: true });

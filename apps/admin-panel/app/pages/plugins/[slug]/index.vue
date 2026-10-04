@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { PluginBundle, PluginVersionListResponse } from "~~/shared/types/registry";
+import type { PluginBundle, PluginVersionListResponse } from "@closet/contract";
+import { ConfirmDialog, FileBrowser, formatDate } from "@closet/ui";
 
 const route = useRoute();
 const router = useRouter();

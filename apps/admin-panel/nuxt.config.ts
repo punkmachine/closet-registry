@@ -3,7 +3,9 @@ export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   devtools: { enabled: true },
 
-  css: ["~/assets/css/main.css"],
+  css: ["@closet/ui/tokens.css", "@closet/ui/styles.css", "~/assets/css/main.css"],
+
+  build: { transpile: ["@closet/ui", "@closet/contract"] },
 
   // Оба ключа — server-only (не внутри `public`), поэтому в браузерный бандл не попадают:
   // ADMIN_TOKEN виден только Nitro-прокси в server/api/**. Дефолты пустые, чтобы токен

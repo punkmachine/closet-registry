@@ -1,12 +1,12 @@
 import {
-  PLUGIN_AI_VALUES,
   PLUGIN_COMPONENTS,
-  type PluginAi,
+  PLUGIN_FILE_AI_VALUES,
   type PluginBundleFile,
   type PluginComponent,
+  type PluginFileAi,
   type PluginFileInput,
   type PluginPublishMetadata,
-} from "~~/shared/types/registry";
+} from "@closet/contract";
 
 /** Один файл в форме публикации/редактирования. */
 export interface FormFile {
@@ -14,7 +14,7 @@ export interface FormFile {
   id: string;
   relativePath: string;
   component: PluginComponent;
-  ai: PluginAi | null;
+  ai: PluginFileAi | null;
   rootPath: boolean;
   merge: boolean;
   mergeKeyPath: string;
@@ -37,7 +37,7 @@ function nextId(): string {
 }
 
 const COMPONENT_SET = new Set<string>(PLUGIN_COMPONENTS);
-const AI_SET = new Set<string>(PLUGIN_AI_VALUES);
+const AI_SET = new Set<string>(PLUGIN_FILE_AI_VALUES);
 
 /** Синонимы каталогов, которыми реально называют компоненты в проектах Claude Code / Codex. */
 const COMPONENT_ALIASES: Record<string, PluginComponent> = {
@@ -59,7 +59,7 @@ const COMPONENT_ALIASES: Record<string, PluginComponent> = {
   bin: "scripts",
 };
 
-const AI_ALIASES: Record<string, PluginAi> = {
+const AI_ALIASES: Record<string, PluginFileAi> = {
   codex: "codex",
   "claude-code": "claude-code",
   claude: "claude-code",
@@ -78,14 +78,14 @@ function splitPath(path: string): string[] {
  */
 export function classifyPath(rawPath: string): {
   component: PluginComponent;
-  ai: PluginAi | null;
+  ai: PluginFileAi | null;
   relativePath: string;
 } {
   const segments = splitPath(rawPath);
   const fileName = segments.at(-1) ?? rawPath;
 
   let component: PluginComponent | null = null;
-  let ai: PluginAi | null = null;
+  let ai: PluginFileAi | null = null;
   const rest: string[] = [];
 
   for (const [index, segment] of segments.entries()) {

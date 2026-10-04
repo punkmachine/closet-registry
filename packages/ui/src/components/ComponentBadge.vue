@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { PluginAi, PluginComponent } from "~~/shared/types/registry";
+import type { PluginComponent, PluginFileAi } from "@closet/contract";
 
 const props = defineProps<{
   component: PluginComponent;
-  ai?: PluginAi | null;
+  ai?: PluginFileAi | null;
 }>();
 </script>
 

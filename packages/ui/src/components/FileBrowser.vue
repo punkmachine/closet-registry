@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import type { PluginBundleFile, PluginComponent } from "~~/shared/types/registry";
+import type { PluginBundleFile, PluginComponent } from "@closet/contract";
+import { computed, ref, watch } from "vue";
+
+import { formatBytes } from "../format";
+import ComponentBadge from "./ComponentBadge.vue";
 
 const props = defineProps<{ files: PluginBundleFile[] }>();
 

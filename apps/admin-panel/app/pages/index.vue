@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import type { PluginListResponse } from "~~/shared/types/registry";
+import type { PluginListResponse } from "@closet/contract";
+import { PluginCard } from "@closet/ui";
+
+const NuxtLink = resolveComponent("NuxtLink");
 
 const { data, pending, error, refresh } = await useFetch<PluginListResponse>("/api/plugins");
 
@@ -78,7 +81,13 @@ const filtered = computed(() => {
     </div>
 
     <div v-else class="grid" :class="{ 'grid--list': view === 'list' }">
-      <PluginCard v-for="plugin in filtered" :key="plugin.slug" :plugin="plugin" />
+      <PluginCard
+        v-for="plugin in filtered"
+        :key="plugin.slug"
+        :plugin="plugin"
+        :as="NuxtLink"
+        :to="`/plugins/${encodeURIComponent(plugin.slug)}`"
+      />
     </div>
   </div>
 </template>

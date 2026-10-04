@@ -1,0 +1,29 @@
+{
+  "name": "@closet/ui",
+  "version": "0.1.0",
+  "description": "Vue-компоненты и дизайн-токены админки closet-registry. Исходники без сборки, транспилируются потребителем",
+  "type": "module",
+  "private": true,
+  "sideEffects": ["*.css"],
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/tokens.css",
+    "./styles.css": "./src/styles.css"
+  },
+  "files": ["src"],
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@closet/contract": "workspace:*"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@closet/config": "workspace:*",
+    "typescript": "catalog:ts59",
+    "vue": "^3.5.43",
+    "vue-tsc": "^3.3.11"
+  }
+}

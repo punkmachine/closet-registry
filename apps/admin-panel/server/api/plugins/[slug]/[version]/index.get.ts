@@ -1,4 +1,4 @@
-import type { PluginBundle } from "~~/shared/types/registry";
+import type { PluginBundle } from "@closet/contract";
 
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, "slug", { decode: true });

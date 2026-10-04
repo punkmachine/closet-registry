@@ -17,11 +17,14 @@
     "test": "echo \"no tests\" && exit 0"
   },
   "dependencies": {
+    "@closet/contract": "workspace:*",
+    "@closet/ui": "workspace:*",
     "nuxt": "^4.5.2",
     "vue": "^3.5.43",
     "vue-router": "^5.3.1"
   },
   "devDependencies": {
+    "@closet/config": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:ts59",
     "vue-tsc": "^3.3.11"

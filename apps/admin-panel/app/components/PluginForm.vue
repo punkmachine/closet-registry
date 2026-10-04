@@ -2,12 +2,13 @@
 import {
   MAX_FILE_SIZE_BYTES,
   MAX_FILES_PER_VERSION,
-  PLUGIN_AI_VALUES,
   PLUGIN_COMPONENTS,
-  type PluginAi,
+  PLUGIN_FILE_AI_VALUES,
   type PluginBundle,
+  type PluginFileAi,
   type PluginListItem,
-} from "~~/shared/types/registry";
+} from "@closet/contract";
+import { ComponentBadge, formatBytes } from "@closet/ui";
 import {
   emptyTextFormFile,
   formFileFromBrowserFile,
@@ -51,9 +52,11 @@ watch(publishMode, (mode) => {
 
 function bumpPatch(input: string): string {
   const match = /^(\d+)\.(\d+)\.(\d+)/.exec(input);
+
   if (!match) {
     return input;
   }
+
   return `${match[1]}.${match[2]}.${Number(match[3]) + 1}`;
 }
 
@@ -61,11 +64,13 @@ const expanded = ref<Set<string>>(new Set());
 
 function toggleExpanded(id: string): void {
   const next = new Set(expanded.value);
+
   if (next.has(id)) {
     next.delete(id);
   } else {
     next.add(id);
   }
+
   expanded.value = next;
 }
 
@@ -317,10 +322,10 @@ const totalSize = computed(() => files.value.reduce((sum, file) => sum + (file.b
                   <select
                     class="select input--mono"
                     :value="file.ai ?? ''"
-                    @change="file.ai = (($event.target as HTMLSelectElement).value || null) as PluginAi | null"
+                    @change="file.ai = (($event.target as HTMLSelectElement).value || null) as PluginFileAi | null"
                   >
                     <option value="">общий для всех ИИ</option>
-                    <option v-for="ai in PLUGIN_AI_VALUES" :key="ai" :value="ai">{{ ai }}</option>
+                    <option v-for="ai in PLUGIN_FILE_AI_VALUES" :key="ai" :value="ai">{{ ai }}</option>
                   </select>
                 </div>
               </div>
