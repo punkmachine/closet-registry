@@ -1,24 +1,11 @@
 {
+  "extends": "@closet/config/tsconfig/node.json",
   "compilerOptions": {
-    "target": "ES2023",
-    "lib": ["ES2023"],
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
     "rootDir": "src",
     "outDir": "dist",
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": false,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "useDefineForClassFields": false,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
     "declaration": false,
-    "sourceMap": true,
-    "verbatimModuleSyntax": true
+    "sourceMap": true
   },
   "include": ["src/**/*.ts"]
 }

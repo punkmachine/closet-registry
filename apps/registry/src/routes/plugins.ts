@@ -1,3 +1,11 @@
+import {
+  errorResponseSchema,
+  pluginBundleParamsSchema,
+  pluginBundleResponseSchema,
+  pluginListResponseSchema,
+  pluginSlugParamsSchema,
+  pluginVersionListResponseSchema,
+} from "@closet/contract";
 import type { FastifyPluginAsyncZod } from "@fastify/type-provider-zod";
 
 import { readVersionFiles } from "../registry/file-store.js";
@@ -8,14 +16,6 @@ import {
   findLatestActiveVersion,
   getDependencySlugs,
 } from "../registry/plugins-repository.js";
-import {
-  pluginBundleResponseSchema,
-  pluginListResponseSchema,
-  pluginSlugParamsSchema,
-  pluginSlugVersionParamsSchema,
-  pluginVersionListResponseSchema,
-} from "../registry/plugin-schemas.js";
-import { errorResponseSchema } from "../registry/schemas.js";
 
 function detectEncoding(content: Buffer): { encoding: "utf8" | "base64"; text: string } {
   const decoded = content.toString("utf8");
@@ -91,7 +91,7 @@ const pluginsRoutes: FastifyPluginAsyncZod = async (fastify) => {
     "/plugins/:slug/:version",
     {
       schema: {
-        params: pluginSlugVersionParamsSchema,
+        params: pluginBundleParamsSchema,
         response: {
           200: pluginBundleResponseSchema,
           404: errorResponseSchema,

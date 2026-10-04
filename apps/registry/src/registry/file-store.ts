@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { PluginComponent, PluginFileAi } from "../db/entities/plugin-file.entity.js";
+import type { PluginComponent, PluginFileAi } from "@closet/contract";
 
 // В Docker содержимое плагинов живёт на примонтированном томе (REGISTRY_STORAGE_DIR=/data/plugins),
 // а не внутри дерева исходников — поэтому путь настраиваемый. Дефолт сохранён для локальной разработки.
@@ -36,10 +36,20 @@ export interface PluginFileRead extends PluginFileLocation {
   content: Buffer;
 }
 
+// Defence in depth: slug/version уже валидируются схемами контракта на входе роутов, но на диск
+// они попадают и мимо них, поэтому результат дополнительно проверяется через path.relative
+// (буква диска на Windows-хосте вроде "C:" иначе разрешается в корень диска).
 function assertSafeSlugSegment(value: string): string {
   if (value.length === 0 || value.includes("\0") || value.includes("/") || value.includes("\\") || value === "." || value === "..") {
     throw new PathTraversalError(value);
   }
+
+  const resolved = path.resolve(REGISTRY_PLUGINS_DIR, value);
+  const relativeToRoot = path.relative(REGISTRY_PLUGINS_DIR, resolved);
+  if (relativeToRoot !== value || relativeToRoot.startsWith("..") || path.isAbsolute(relativeToRoot)) {
+    throw new PathTraversalError(value);
+  }
+
   return value;
 }
 

@@ -1,16 +1,11 @@
-import semver from "semver";
 import { z } from "zod";
-import { PLUGIN_COMPONENTS, PLUGIN_FILE_AI_VALUES } from "../db/entities/plugin-file.entity.js";
+
+import { PLUGIN_COMPONENTS, PLUGIN_FILE_AI_VALUES } from "./components.js";
+import { semverSchema, slugSchema, versionOrLatestSchema } from "./identifiers.js";
+import { MAX_CHANGELOG_LENGTH, MAX_DESCRIPTION_LENGTH } from "./limits.js";
 
 export const pluginComponentSchema = z.enum(PLUGIN_COMPONENTS);
 export const pluginFileAiSchema = z.enum(PLUGIN_FILE_AI_VALUES);
-
-const semverStringSchema = z
-  .string()
-  .min(1)
-  .refine((value) => semver.valid(value) !== null, {
-    message: "must be a valid semver string",
-  });
 
 // Без content — используется и для входящего multipart-запроса (метаданные файла),
 // и как база для ответа сервера (расширяется sha256/sizeBytes ниже).
@@ -28,6 +23,7 @@ export const pluginFileInputSchema = pluginFileObjectSchema.refine(
   (file) => !file.merge || file.mergeKeyPath !== undefined,
   { message: "merge files must specify mergeKeyPath", path: ["mergeKeyPath"] },
 );
+export type PluginFileInput = z.infer<typeof pluginFileInputSchema>;
 
 export const pluginFileMetadataSchema = pluginFileObjectSchema.extend({
   // В ответе сервера mergeKeyPath приходит из БД, где он nullable (не "может отсутствовать" как во входной схеме).
@@ -35,20 +31,23 @@ export const pluginFileMetadataSchema = pluginFileObjectSchema.extend({
   sha256: z.string(),
   sizeBytes: z.string(),
 });
+export type PluginFileMetadata = z.infer<typeof pluginFileMetadataSchema>;
 
 export const pluginPublishMetadataSchema = z.object({
-  slug: z.string().min(1),
-  description: z.string(),
-  version: semverStringSchema,
-  changelog: z.string().optional(),
-  dependencies: z.array(z.string()).default([]),
+  slug: slugSchema,
+  description: z.string().max(MAX_DESCRIPTION_LENGTH),
+  version: semverSchema,
+  changelog: z.string().max(MAX_CHANGELOG_LENGTH).optional(),
+  dependencies: z.array(slugSchema).default([]),
   files: z.array(pluginFileInputSchema).min(1),
 });
+export type PluginPublishMetadata = z.infer<typeof pluginPublishMetadataSchema>;
 
 export const pluginUpdateMetadataSchema = pluginPublishMetadataSchema.partial({
   slug: true,
   version: true,
 });
+export type PluginUpdateMetadata = z.infer<typeof pluginUpdateMetadataSchema>;
 
 export const pluginVersionResponseSchema = z.object({
   slug: z.string(),
@@ -58,14 +57,22 @@ export const pluginVersionResponseSchema = z.object({
   dependencies: z.array(z.string()),
   files: z.array(pluginFileMetadataSchema),
 });
+export type PluginVersionResponse = z.infer<typeof pluginVersionResponseSchema>;
 
 export const pluginSlugParamsSchema = z.object({
-  slug: z.string().min(1),
+  slug: slugSchema,
 });
 
+/** Params для PUT/DELETE версии: только точная semver-версия. */
 export const pluginSlugVersionParamsSchema = z.object({
-  slug: z.string().min(1),
-  version: z.string().min(1),
+  slug: slugSchema,
+  version: semverSchema,
+});
+
+/** Params для чтения bundle: допускает литерал `latest`. */
+export const pluginBundleParamsSchema = z.object({
+  slug: slugSchema,
+  version: versionOrLatestSchema,
 });
 
 // Единый bundle-эндпоинт чтения: один запрос отдаёт содержимое всех файлов версии сразу.
@@ -74,6 +81,7 @@ export const pluginBundleFileSchema = pluginFileMetadataSchema.extend({
   encoding: z.enum(["utf8", "base64"]),
   content: z.string(),
 });
+export type PluginBundleFile = z.infer<typeof pluginBundleFileSchema>;
 
 export const pluginBundleResponseSchema = z.object({
   slug: z.string(),
@@ -83,6 +91,7 @@ export const pluginBundleResponseSchema = z.object({
   dependencies: z.array(z.string()),
   files: z.array(pluginBundleFileSchema),
 });
+export type PluginBundle = z.infer<typeof pluginBundleResponseSchema>;
 
 // GET /v1/plugins — листинг всех опубликованных плагинов (не версий): slug + latest semver.
 // Без пагинации в MVP — self-hosted реестр небольшого масштаба, добавить пагинацию можно позже
@@ -93,10 +102,12 @@ export const pluginListItemSchema = z.object({
   latestVersion: z.string(),
   updatedAt: z.string(),
 });
+export type PluginListItem = z.infer<typeof pluginListItemSchema>;
 
 export const pluginListResponseSchema = z.object({
   plugins: z.array(pluginListItemSchema),
 });
+export type PluginListResponse = z.infer<typeof pluginListResponseSchema>;
 
 // GET /v1/plugins/:slug/versions — история версий одного плагина без содержимого файлов.
 // closet-cli этот эндпоинт не использует (ему достаточно "latest"), он нужен админке.
@@ -107,8 +118,10 @@ export const pluginVersionListItemSchema = z.object({
   updatedAt: z.string(),
   fileCount: z.number().int(),
 });
+export type PluginVersionListItem = z.infer<typeof pluginVersionListItemSchema>;
 
 export const pluginVersionListResponseSchema = z.object({
   slug: z.string(),
   versions: z.array(pluginVersionListItemSchema),
 });
+export type PluginVersionListResponse = z.infer<typeof pluginVersionListResponseSchema>;

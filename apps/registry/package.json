@@ -8,15 +8,16 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch --conditions=development src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "migration:run": "tsx src/db/run-migrations.ts",
-    "migration:revert": "tsx src/db/revert-migration.ts",
+    "migration:run": "tsx --conditions=development src/db/run-migrations.ts",
+    "migration:revert": "tsx --conditions=development src/db/revert-migration.ts",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@closet/contract": "workspace:*",
     "@fastify/cors": "^11.3.0",
     "@fastify/multipart": "^10.1.0",
     "@fastify/rate-limit": "^11.2.0",
@@ -31,6 +32,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@closet/config": "workspace:*",
     "@types/node": "catalog:",
     "@types/pg": "^8.21.0",
     "@types/semver": "^7.5.8",

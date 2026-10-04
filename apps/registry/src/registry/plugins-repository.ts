@@ -1,7 +1,7 @@
 import semver from "semver";
 import type { DataSource, EntityManager } from "typeorm";
 import { In } from "typeorm";
-import type { PluginComponent, PluginFileAi } from "../db/entities/plugin-file.entity.js";
+import type { PluginComponent, PluginFileAi } from "@closet/contract";
 import { PluginFile } from "../db/entities/plugin-file.entity.js";
 import { PluginDependency } from "../db/entities/plugin-dependency.entity.js";
 import { Plugin } from "../db/entities/plugin.entity.js";

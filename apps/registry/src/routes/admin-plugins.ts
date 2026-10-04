@@ -1,3 +1,11 @@
+import {
+  errorResponseSchema,
+  pluginPublishMetadataSchema,
+  pluginSlugParamsSchema,
+  pluginSlugVersionParamsSchema,
+  pluginUpdateMetadataSchema,
+  pluginVersionResponseSchema,
+} from "@closet/contract";
 import type { FastifyPluginAsyncZod } from "@fastify/type-provider-zod";
 import { z } from "zod";
 
@@ -15,14 +23,6 @@ import {
   toPluginVersionResult,
   upsertPluginVersion,
 } from "../registry/plugins-repository.js";
-import {
-  pluginPublishMetadataSchema,
-  pluginSlugParamsSchema,
-  pluginSlugVersionParamsSchema,
-  pluginUpdateMetadataSchema,
-  pluginVersionResponseSchema,
-} from "../registry/plugin-schemas.js";
-import { errorResponseSchema } from "../registry/schemas.js";
 
 type PluginFileMeta = z.infer<typeof pluginPublishMetadataSchema>["files"][number];
 

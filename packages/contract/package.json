@@ -1,0 +1,29 @@
+{
+  "name": "@closet/contract",
+  "version": "0.1.0",
+  "description": "Контракт closet-registry: zod-схемы, выведенные типы, enum-константы и лимиты API. Зависит только от zod и semver",
+  "type": "module",
+  "private": true,
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "development": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "semver": "^7.8.5",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@closet/config": "workspace:*",
+    "@types/semver": "^7.5.8",
+    "typescript": "catalog:ts7"
+  }
+}

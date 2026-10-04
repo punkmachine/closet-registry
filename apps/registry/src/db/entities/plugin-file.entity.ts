@@ -1,19 +1,6 @@
 import { Check, Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, Unique } from "typeorm";
+import type { PluginComponent, PluginFileAi } from "@closet/contract";
 import type { PluginVersion } from "./plugin-version.entity.js";
-
-export const PLUGIN_COMPONENTS = [
-  "mcp",
-  "rules",
-  "hooks",
-  "agents",
-  "commands",
-  "skills",
-  "scripts",
-] as const;
-export type PluginComponent = (typeof PLUGIN_COMPONENTS)[number];
-
-export const PLUGIN_FILE_AI_VALUES = ["codex", "claude-code"] as const;
-export type PluginFileAi = (typeof PLUGIN_FILE_AI_VALUES)[number];
 
 @Entity({ name: "plugin_files" })
 @Unique(["version", "component", "ai", "relativePath"])

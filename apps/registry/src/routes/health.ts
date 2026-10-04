@@ -1,6 +1,6 @@
 import type { FastifyPluginAsyncZod } from "@fastify/type-provider-zod";
 
-import { healthResponseSchema } from "../registry/schemas.js";
+import { healthResponseSchema } from "@closet/contract";
 
 const healthRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.get(
