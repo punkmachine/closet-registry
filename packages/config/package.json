@@ -1,0 +1,7 @@
+{
+  "name": "@closet/config",
+  "version": "0.1.0",
+  "description": "Общие конфиги монорепо closet-registry: tsconfig (base/node/vue); конфиг линтера добавится на этапе 02",
+  "private": true,
+  "files": ["tsconfig"]
+}

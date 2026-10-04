@@ -8,12 +8,13 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
-    "dev:registry": "pnpm --filter @closet/registry dev",
-    "dev:admin": "pnpm --filter @closet/admin-panel dev",
-    "build": "pnpm --filter \"./apps/*\" build",
-    "typecheck": "pnpm --filter \"./apps/*\" typecheck",
-    "test": "pnpm --filter \"./apps/*\" test",
+    "dev": "pnpm build:packages && pnpm --parallel --filter \"./apps/*\" dev",
+    "dev:registry": "pnpm build:packages && pnpm --filter @closet/registry dev",
+    "dev:admin": "pnpm build:packages && pnpm --filter @closet/admin-panel dev",
+    "build:packages": "pnpm --filter \"./packages/*\" build",
+    "build": "pnpm build:packages && pnpm --filter \"./apps/*\" build",
+    "typecheck": "pnpm build:packages && pnpm --filter \"./packages/*\" --filter \"./apps/*\" typecheck",
+    "test": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" --if-present test",
     "migration:run": "pnpm --filter @closet/registry migration:run",
     "migration:revert": "pnpm --filter @closet/registry migration:revert",
     "prepare": "simple-git-hooks"
