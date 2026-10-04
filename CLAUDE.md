@@ -16,6 +16,23 @@
 репозитория (`/v1/plugins/:slug/:version`, все `/v1/*` за токеном) не совпадает —
 интеграция ещё не доведена до конца.
 
+## Пакеты (`packages/*`)
+
+- `@closet/contract` — единственный источник контракта API: zod-схемы, `z.infer`-типы,
+  `PLUGIN_COMPONENTS`/`PLUGIN_FILE_AI_VALUES`, лимиты (`MAX_FILE_SIZE_BYTES`,
+  `MAX_FILES_PER_VERSION`), `slugSchema`/`semverSchema` (charset slug закрывает path
+  traversal). Зависимости только `zod` и `semver`. **Собирается `tsc` в `dist/`**
+  (`pnpm build:packages`): `exports` → `dist` (types/default) и условие `development` →
+  `src` (для `tsx --conditions=development`). Исходники не отдаются как `exports`
+  напрямую, потому что registry собирается с `rootDir: src` и запускается `node dist/server.js`.
+  `typecheck`/`build`/`dev` в корне сами вызывают `build:packages` первым шагом.
+- `@closet/config` — общие tsconfig (`tsconfig/base|node|vue.json`). `apps/admin-panel/tsconfig.json`
+  остаётся ссылкой на сгенерированные Nuxt'ом конфиги.
+- `@closet/ui` — Vue-компоненты (`ComponentBadge`, `PluginCard`, `ConfirmDialog`,
+  `FileBrowser`) + `tokens.css` + `styles.css`; исходники без сборки, Nuxt транспилирует
+  (`build.transpile`). `PluginForm` остался в админке (завязан на `utils/plugin-files.ts`
+  и Nuxt). Ссылку `PluginCard` принимает пропом `as` (например `NuxtLink`).
+
 ## Команды разработки
 
 Пакетный менеджер — **pnpm**, не npm/yarn.
