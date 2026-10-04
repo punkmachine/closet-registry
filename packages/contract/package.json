@@ -24,6 +24,6 @@
   "devDependencies": {
     "@closet/config": "workspace:*",
     "@types/semver": "^7.5.8",
-    "typescript": "catalog:ts7"
+    "typescript": "catalog:"
   }
 }

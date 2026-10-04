@@ -26,7 +26,7 @@
   "devDependencies": {
     "@closet/config": "workspace:*",
     "@types/node": "catalog:",
-    "typescript": "catalog:ts59",
+    "typescript": "catalog:",
     "vue-tsc": "^3.3.11"
   }
 }
