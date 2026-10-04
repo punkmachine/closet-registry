@@ -1,5 +1,3 @@
-# Контекст сборки — корень монорепо (compose.yaml: context: .).
-
 FROM node:22-alpine AS build
 WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
@@ -19,8 +17,6 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-# Nitro-сборка (.output) самодостаточна — зависимости вбандлены внутрь, поэтому
-# в рантайме нет ни pnpm, ни node_modules, ни исходников.
 COPY --from=build /app/apps/admin-panel/.output ./.output
 
 USER node

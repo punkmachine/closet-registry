@@ -3,14 +3,16 @@ dist/
 .env
 *.log
 .DS_Store
-
-# Nuxt (apps/admin-panel)
 .nuxt/
 .output/
 .data/
 .nitro/
 .cache/
 
-# Содержимое файлов плагинов — данные инстанса, не исходники
 apps/registry/registry/plugins/*
 !apps/registry/registry/plugins/.gitkeep
+
+/registry/
+/dist/
+
+/plans

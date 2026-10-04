@@ -15,7 +15,19 @@
     "typecheck": "pnpm --filter \"./apps/*\" typecheck",
     "test": "pnpm --filter \"./apps/*\" test",
     "migration:run": "pnpm --filter @closet/registry migration:run",
-    "migration:revert": "pnpm --filter @closet/registry migration:revert"
+    "migration:revert": "pnpm --filter @closet/registry migration:revert",
+    "prepare": "simple-git-hooks"
+  },
+  "devDependencies": {
+    "nano-staged": "^1.0.2",
+    "simple-git-hooks": "^2.14.0"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm nano-staged",
+    "pre-push": "pnpm typecheck && pnpm test"
+  },
+  "nano-staged": {
+    "*.{ts,vue,json,css,md}": "node -e \"process.exit(0)\""
   },
   "packageManager": "pnpm@11.17.0"
 }

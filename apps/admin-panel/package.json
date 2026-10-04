@@ -22,8 +22,8 @@
     "vue-router": "^5.3.1"
   },
   "devDependencies": {
-    "@types/node": "^22.20.1",
-    "typescript": "~5.9.0",
+    "@types/node": "catalog:",
+    "typescript": "catalog:ts59",
     "vue-tsc": "^3.3.11"
   }
 }
