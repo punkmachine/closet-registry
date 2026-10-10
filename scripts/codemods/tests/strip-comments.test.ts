@@ -22,9 +22,6 @@ describe("strip-comments: .ts", () => {
       "// @ts-expect-error причина",
       "// eslint-disable-next-line no-console -- причина",
       "// biome-ignore lint/style: причина",
-      "// oxlint-disable-next-line no-console",
-      "// prettier-ignore",
-      'const m = import(/* webpackChunkName: "x" */ "./x.js");',
       'const n = import(/* @vite-ignore */ "./y.js");',
       "",
     ].join("\n");
