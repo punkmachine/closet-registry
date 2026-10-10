@@ -1,6 +1,4 @@
-/** Лимиты публикации: применяются в @fastify/multipart реестра и дублируются в UI для превентивной валидации. */
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 export const MAX_FILES_PER_VERSION = 200;
-
 export const MAX_DESCRIPTION_LENGTH = 1000;
 export const MAX_CHANGELOG_LENGTH = 20_000;

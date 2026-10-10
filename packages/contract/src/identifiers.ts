@@ -13,12 +13,16 @@ export const slugSchema = z
   .regex(/^[a-z0-9][a-z0-9._-]*$/, "slug: только [a-z0-9._-], первый символ — буква или цифра")
   .refine((value) => !value.includes(".."), "slug не может содержать '..'");
 
-/** Версия плагина. Тот же semver, что и при публикации — в том числе в URL-параметрах PUT/DELETE. */
+/**
+ * Версия плагина. Тот же semver, что и при публикации — в том числе в URL-параметрах PUT/DELETE.
+ */
 export const semverSchema = z
   .string()
   .min(1)
   .max(64)
   .refine((value) => semver.valid(value) !== null, "must be a valid semver string");
 
-/** Литерал `latest` допустим только при чтении bundle. */
+/**
+ * Литерал `latest` допустим только при чтении bundle.
+ */
 export const versionOrLatestSchema = z.union([semverSchema, z.literal("latest")]);
