@@ -14,14 +14,18 @@ const {
 
 const versions = computed(() => versionList.value?.versions ?? []);
 
-// Версия в query, а не в пути: ссылка на конкретную версию шарится, но при этом страница
-// остаётся одна и не требует вложенного роутинга.
+/**
+ * Версия в query, а не в пути: ссылка на конкретную версию шарится, но при этом страница
+ * остаётся одна и не требует вложенного роутинга.
+ */
 const selectedVersion = computed(() => {
   const fromQuery = route.query.version;
   const candidate = typeof fromQuery === "string" ? fromQuery : "";
+
   if (candidate && versions.value.some((item) => item.version === candidate)) {
     return candidate;
   }
+
   return versions.value[0]?.version ?? "";
 });
 
@@ -99,7 +103,7 @@ async function confirmDelete(): Promise<void> {
     });
 
     deleteTarget.value = null;
-    // Если удалили последнюю версию, плагин уходит из листинга — возвращаемся на главную.
+    /** Если удалили последнюю версию, плагин уходит из листинга — возвращаемся на главную. */
     if (versions.value.length <= 1) {
       await router.push("/");
       return;

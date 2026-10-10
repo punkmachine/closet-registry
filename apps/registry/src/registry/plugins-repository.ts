@@ -7,7 +7,13 @@ import { PluginDependency } from "../db/entities/plugin-dependency.entity.js";
 import { PluginFile } from "../db/entities/plugin-file.entity.js";
 import { PluginVersion } from "../db/entities/plugin-version.entity.js";
 
+/**
+ *
+ */
 export class PluginVersionConflictError extends Error {
+  /**
+   *
+   */
   constructor(
     public readonly slug: string,
     public readonly version: string,
@@ -48,6 +54,9 @@ export interface PluginVersionResult {
   files: PluginFileInsert[];
 }
 
+/**
+ *
+ */
 export async function findMissingDependencySlugs(dataSource: DataSource, slugs: string[]): Promise<string[]> {
   if (slugs.length === 0) {
     return [];
@@ -62,6 +71,9 @@ export async function findMissingDependencySlugs(dataSource: DataSource, slugs: 
   return slugs.filter((slug) => !existing.has(slug));
 }
 
+/**
+ *
+ */
 export async function findAnyVersion(
   dataSource: DataSource,
   slug: string,
@@ -73,13 +85,18 @@ export async function findAnyVersion(
   });
 }
 
+/**
+ * Создаёт плагин или обновляет описание существующего.
+ *
+ * @remarks
+ * Публикация новой версии «воскрешает» ранее мягко удалённый плагин под тем же slug: иначе slug
+ * навсегда становится непереиспользуемым после soft delete.
+ */
 async function upsertPluginRecord(manager: EntityManager, slug: string, description: string): Promise<Plugin> {
   const pluginRepo = manager.getRepository(Plugin);
   const existing = await pluginRepo.findOne({ where: { slug } });
   const plugin = existing ?? pluginRepo.create({ slug, description });
   plugin.description = description;
-  // Публикация новой версии "воскрешает" ранее мягко удалённый плагин под тем же slug —
-  // иначе slug навсегда становится непереиспользуемым после soft delete.
   plugin.deleted = false;
   plugin.deletedAt = null;
   return await pluginRepo.save(plugin);
@@ -104,19 +121,27 @@ async function replacePluginDependencies(
   await dependencyRepo.save(dependencies.map((dependsOn) => dependencyRepo.create({ plugin, dependsOn })));
 }
 
+/**
+ * Заменяет все файлы версии переданным набором.
+ *
+ * @remarks
+ * Удаление идёт прямым фильтром по колонке `version_id` через query builder, а не `delete({ version })`:
+ * так нет неоднозначности `FindOptionsWhere` с relation-объектом на write-пути.
+ */
 async function replaceVersionFiles(
   manager: EntityManager,
   version: PluginVersion,
   files: PluginFileInsert[],
 ): Promise<PluginFile[]> {
   const fileRepo = manager.getRepository(PluginFile);
-  // Прямой filter по колонке version_id через query builder, а не delete({ version })
-  // — избегаем неоднозначности FindOptionsWhere с relation-объектом на write-пути.
   await fileRepo.createQueryBuilder().delete().where("version_id = :versionId", { versionId: version.id }).execute();
   const entities = fileRepo.create(files.map((file) => ({ ...file, version })));
   return await fileRepo.save(entities);
 }
 
+/**
+ *
+ */
 export function toPluginVersionResult(
   plugin: Plugin,
   version: PluginVersion,
@@ -143,6 +168,13 @@ export function toPluginVersionResult(
   };
 }
 
+/**
+ * Публикует новую версию плагина в одной транзакции.
+ *
+ * @remarks
+ * Версия ищется по `{ plugin: { id: plugin.id } }`, а не по `{ plugin }` целиком: во втором случае TypeORM
+ * фильтрует по всем колонкам связанной сущности (включая `deletedAt: null`) и падает без явного `IsNull()`.
+ */
 export async function publishPluginVersion(
   dataSource: DataSource,
   input: PluginVersionWriteInput,
@@ -151,8 +183,6 @@ export async function publishPluginVersion(
     const plugin = await upsertPluginRecord(manager, input.slug, input.description);
 
     const versionRepo = manager.getRepository(PluginVersion);
-    // { plugin: { id } }, а не { plugin } целиком — иначе TypeORM фильтрует по ВСЕМ колонкам
-    // связанной сущности (включая deletedAt: null) и падает без IsNull().
     const existingVersion = await versionRepo.findOne({ where: { version: input.version, plugin: { id: plugin.id } } });
     if (existingVersion) {
       throw new PluginVersionConflictError(input.slug, input.version);
@@ -168,9 +198,14 @@ export async function publishPluginVersion(
   });
 }
 
-// Full replace СУЩЕСТВУЮЩЕЙ активной версии активного плагина. Ничего не создаёт и не "воскрешает":
-// публикация новых версий и воскрешение soft-deleted slug — только через publishPluginVersion (POST).
-// Возвращает null, если плагин или версия не найдены / удалены (роут отвечает 404).
+/**
+ * Полностью заменяет файлы и зависимости существующей активной версии активного плагина.
+ *
+ * @remarks
+ * Ничего не создаёт и не «воскрешает»: публикация новых версий и воскрешение soft-deleted slug — только
+ * через {@link publishPluginVersion} (POST). Возвращает `null`, если плагин или версия не найдены или
+ * удалены (роут отвечает `404`).
+ */
 export async function updatePluginVersion(
   dataSource: DataSource,
   input: PluginVersionWriteInput,
@@ -202,6 +237,9 @@ export async function updatePluginVersion(
   });
 }
 
+/**
+ *
+ */
 export async function softDeleteVersion(
   dataSource: DataSource,
   slug: string,
@@ -223,6 +261,9 @@ export async function softDeleteVersion(
   });
 }
 
+/**
+ *
+ */
 export async function findActiveVersionBySlugAndVersion(
   dataSource: DataSource,
   slug: string,
@@ -234,7 +275,13 @@ export async function findActiveVersionBySlugAndVersion(
   });
 }
 
-// "latest" версия считается через semver.gt по всем активным версиям, а не через created_at/лексикографию
+/**
+ * Находит последнюю активную версию плагина.
+ *
+ * @remarks
+ * «Последняя» считается через `semver.gt` по всем активным версиям, а не через `created_at` или
+ * лексикографическую сортировку.
+ */
 export async function findLatestActiveVersion(dataSource: DataSource, slug: string): Promise<PluginVersion | null> {
   const versions = await dataSource.getRepository(PluginVersion).find({
     where: { deleted: false, plugin: { slug, deleted: false } },
@@ -253,9 +300,13 @@ export interface PluginListItem {
   updatedAt: Date;
 }
 
-// Один запрос с relations: versions (JOIN), не N+1 — на список плагин может быть длинным.
-// Плагины, у которых не осталось ни одной активной версии (все soft-deleted), в листинг не попадают —
-// они не устанавливаемы, показывать их как доступные было бы неверно.
+/**
+ * Список активных плагинов с последней версией каждого.
+ *
+ * @remarks
+ * Один запрос с `relations: { versions: true }` (JOIN), а не N+1. Плагины без единой активной версии
+ * в листинг не попадают: они не устанавливаемы, показывать их как доступные было бы неверно.
+ */
 export async function findAllActivePluginsWithLatestVersion(dataSource: DataSource): Promise<PluginListItem[]> {
   const plugins = await dataSource.getRepository(Plugin).find({
     where: { deleted: false },
@@ -290,10 +341,13 @@ export interface PluginVersionListItem {
   fileCount: number;
 }
 
-// Версии одного плагина, от новой к старой по semver (а не по created_at — версию можно
-// опубликовать задним числом). Нужно админке: какую версию открыть/отредактировать/удалить.
-// Плагин без активных версий отдаёт пустой массив, а несуществующий/удалённый — null,
-// чтобы роут мог различить 200 и 404.
+/**
+ * Активные версии одного плагина, от новой к старой.
+ *
+ * @remarks
+ * Порядок по semver, а не по `created_at`: версию можно опубликовать задним числом. Плагин без активных
+ * версий отдаёт пустой массив, а несуществующий или удалённый — `null`, чтобы роут различал `200` и `404`.
+ */
 export async function findActiveVersionsBySlug(
   dataSource: DataSource,
   slug: string,
@@ -319,6 +373,9 @@ export async function findActiveVersionsBySlug(
     .toSorted((a, b) => semver.rcompare(a.version, b.version));
 }
 
+/**
+ *
+ */
 export async function getDependencySlugs(dataSource: DataSource, pluginId: string): Promise<string[]> {
   const dependencies = await dataSource.getRepository(PluginDependency).find({
     where: { pluginId },
@@ -328,6 +385,9 @@ export async function getDependencySlugs(dataSource: DataSource, pluginId: strin
   return dependencies.map((dependency) => dependency.dependsOn.slug);
 }
 
+/**
+ *
+ */
 export async function softDeletePlugin(dataSource: DataSource, slug: string): Promise<Plugin | null> {
   return await dataSource.transaction(async (manager) => {
     const pluginRepo = manager.getRepository(Plugin);

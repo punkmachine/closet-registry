@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: "Не указан slug или version плагина" });
   }
 
-  // PUT в реестре — full replace: тело должно содержать полный набор файлов и зависимостей версии.
+  /** PUT в реестре — full replace: тело должно содержать полный набор файлов и зависимостей версии. */
   return await proxyMultipart(
     event,
     `/admin/plugins/${encodeURIComponent(slug)}/${encodeURIComponent(version)}`,

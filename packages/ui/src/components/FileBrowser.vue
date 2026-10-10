@@ -9,8 +9,10 @@ const props = defineProps<{ files: PluginBundleFile[] }>();
 
 const selectedIndex = ref(0);
 
-// Группировка по компоненту повторяет структуру хранения в реестре
-// (<component>/[<ai>/]<relativePath>), поэтому дерево совпадает с тем, что лежит на диске.
+/**
+ * Группировка по компоненту повторяет структуру хранения в реестре
+ * (<component>/[<ai>/]<relativePath>), поэтому дерево совпадает с тем, что лежит на диске.
+ */
 const groups = computed(() => {
   const byComponent = new Map<PluginComponent, { file: PluginBundleFile; index: number }[]>();
 

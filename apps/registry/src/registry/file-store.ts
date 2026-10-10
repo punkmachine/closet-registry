@@ -3,17 +3,28 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { PluginComponent, PluginFileAi } from "@closet/contract";
 
-// В Docker содержимое плагинов живёт на примонтированном томе (REGISTRY_STORAGE_DIR=/data/plugins),
-// а не внутри дерева исходников — поэтому путь настраиваемый. Дефолт сохранён для локальной разработки.
-// Читается лениво при каждом обращении, а не на уровне модуля: тесты подменяют REGISTRY_STORAGE_DIR
-// на tmp-каталог, и результат не должен зависеть от порядка импортов.
+/**
+ * Корневой каталог хранилища файлов плагинов.
+ *
+ * @remarks
+ * В Docker содержимое плагинов живёт на примонтированном томе (`REGISTRY_STORAGE_DIR=/data/plugins`), а не
+ * внутри дерева исходников, поэтому путь настраиваемый; дефолт сохранён для локальной разработки. Значение
+ * читается лениво при каждом обращении, а не на уровне модуля: тесты подменяют `REGISTRY_STORAGE_DIR` на
+ * tmp-каталог, и результат не должен зависеть от порядка импортов.
+ */
 export function getRegistryPluginsDir(): string {
   return process.env.REGISTRY_STORAGE_DIR
     ? path.resolve(process.env.REGISTRY_STORAGE_DIR)
     : path.resolve(process.cwd(), "registry", "plugins");
 }
 
+/**
+ *
+ */
 export class PathTraversalError extends Error {
+  /**
+   *
+   */
   constructor(public readonly unsafePath: string) {
     super(`Unsafe file path outside of plugin version directory: ${unsafePath}`);
     this.name = "PathTraversalError";
@@ -40,9 +51,17 @@ export interface PluginFileRead extends PluginFileLocation {
   content: Buffer;
 }
 
-// Defence in depth: slug/version уже валидируются схемами контракта на входе роутов, но на диск
-// они попадают и мимо них, поэтому результат дополнительно проверяется через path.relative
-// (буква диска на Windows-хосте вроде "C:" иначе разрешается в корень диска).
+/**
+ * Проверяет, что slug или версия годятся как один сегмент пути на диске.
+ *
+ * @remarks
+ * Defence in depth: slug и version уже валидируются схемами контракта на входе роутов, но на диск они
+ * попадают и мимо них, поэтому результат дополнительно проверяется через `path.relative` (буква диска
+ * на Windows-хосте вроде `C:` иначе разрешается в корень диска). Небезопасным считается: `.`, `..`,
+ * пустая строка, null-байт и любые разделители пути.
+ *
+ * @throws {PathTraversalError} если значение небезопасно
+ */
 export function assertSafeSlugSegment(value: string): string {
   if (
     value === "." ||
@@ -65,10 +84,16 @@ export function assertSafeSlugSegment(value: string): string {
   return value;
 }
 
+/**
+ *
+ */
 export function getPluginVersionDir(pluginSlug: string, version: string): string {
   return path.resolve(getRegistryPluginsDir(), assertSafeSlugSegment(pluginSlug), assertSafeSlugSegment(version));
 }
 
+/**
+ *
+ */
 export function buildStorageRelativePath(
   component: PluginComponent,
   ai: PluginFileAi | null,
@@ -77,6 +102,9 @@ export function buildStorageRelativePath(
   return ai === null ? path.join(component, relativePath) : path.join(component, ai, relativePath);
 }
 
+/**
+ *
+ */
 export function resolveSafePath(versionDir: string, relativePath: string): string {
   if (
     relativePath.length === 0 ||
@@ -97,6 +125,9 @@ export function resolveSafePath(versionDir: string, relativePath: string): strin
   return resolved;
 }
 
+/**
+ *
+ */
 export async function writeVersionFiles(
   pluginSlug: string,
   version: string,
@@ -129,6 +160,9 @@ export async function writeVersionFiles(
   return written;
 }
 
+/**
+ *
+ */
 export async function readVersionFiles(
   pluginSlug: string,
   version: string,

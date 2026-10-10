@@ -14,7 +14,6 @@ async function onSubmit(values: PluginFormValues): Promise<void> {
   submitError.value = null;
 
   try {
-    // FormData уходит как есть: Nitro-прокси пробрасывает тело байт-в-байт, чтобы boundary совпал.
     await $fetch("/api/plugins", { method: "POST", body: buildFormData(values) });
     await router.push(`/plugins/${encodeURIComponent(values.slug)}`);
   } catch (error) {

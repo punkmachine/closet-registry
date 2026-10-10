@@ -7,7 +7,6 @@ const NuxtLink = resolveComponent("NuxtLink");
 const { data, pending, error, refresh } = await useFetch<PluginListResponse>("/api/plugins");
 
 const query = ref("");
-// В cookie, а не в localStorage: режим отображения тогда доступен и при SSR, без мигания раскладки.
 const view = useCookie<"grid" | "list">("closet-view", { default: () => "grid", sameSite: "lax" });
 
 const plugins = computed(() => data.value?.plugins ?? []);

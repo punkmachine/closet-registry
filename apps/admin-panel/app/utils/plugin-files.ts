@@ -8,9 +8,7 @@ import {
   type PluginPublishMetadata,
 } from "@closet/contract";
 
-/** Один файл в форме публикации/редактирования. */
 export interface FormFile {
-  /** Локальный идентификатор строки в форме, в запрос не уходит. */
   id: string;
   relativePath: string;
   component: PluginComponent;
@@ -19,10 +17,6 @@ export interface FormFile {
   merge: boolean;
   mergeKeyPath: string;
   template: boolean;
-  /**
-   * Текстовые файлы можно править прямо в форме; бинарные (не декодируемые как UTF-8)
-   * держим как байты и заменяем только загрузкой нового файла.
-   */
   kind: "text" | "binary";
   text: string;
   bytes: Uint8Array | null;
@@ -39,7 +33,6 @@ function nextId(): string {
 const COMPONENT_SET = new Set<string>(PLUGIN_COMPONENTS);
 const AI_SET = new Set<string>(PLUGIN_FILE_AI_VALUES);
 
-/** Синонимы каталогов, которыми реально называют компоненты в проектах Claude Code / Codex. */
 const COMPONENT_ALIASES: Record<string, PluginComponent> = {
   mcp: "mcp",
   rules: "rules",
@@ -92,7 +85,6 @@ export function classifyPath(rawPath: string): {
     const isLast = index === segments.length - 1;
     const key = segment.toLowerCase();
 
-    // Object.hasOwn: сегмент пути вида "constructor" не должен находиться в прототипе словаря
     const componentAlias = Object.hasOwn(COMPONENT_ALIASES, key) ? COMPONENT_ALIASES[key] : undefined;
     if (!isLast && component === null && componentAlias) {
       component = componentAlias;
@@ -111,6 +103,9 @@ export function classifyPath(rawPath: string): {
   return { component, ai, relativePath: rest.join("/") || fileName };
 }
 
+/**
+ * Определяет компонент плагина по имени файла.
+ */
 export function guessComponentByFileName(fileName: string): PluginComponent {
   const lower = fileName.toLowerCase();
 
@@ -123,7 +118,7 @@ export function guessComponentByFileName(fileName: string): PluginComponent {
   if (lower === "settings.json" || lower.includes("hook")) {
     return "hooks";
   }
-  // .md без иных признаков — правило/памятка: самый частый и самый безобидный дефолт.
+  /** .md без иных признаков — правило/памятка: самый частый и самый безобидный дефолт. */
   return "rules";
 }
 
@@ -165,7 +160,7 @@ function base64ToBytes(base64: string): Uint8Array {
 
 /** Строка формы из локального файла (drag&drop или file input). */
 export async function formFileFromBrowserFile(file: File): Promise<FormFile> {
-  // webkitRelativePath заполнен при выборе целой папки — тогда component/ai видны из пути.
+  /** webkitRelativePath заполнен при выборе целой папки — тогда component/ai видны из пути. */
   const rawPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
   const { component, ai, relativePath } = classifyPath(rawPath);
 
@@ -208,6 +203,9 @@ export function formFileFromBundleFile(file: PluginBundleFile): FormFile {
   };
 }
 
+/**
+ *
+ */
 export function emptyTextFormFile(): FormFile {
   return {
     id: nextId(),

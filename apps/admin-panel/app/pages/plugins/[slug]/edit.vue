@@ -25,7 +25,6 @@ async function onSubmit(values: PluginFormValues, publishMode: "replace" | "new"
     const body = buildFormData(values);
 
     if (publishMode === "replace") {
-      // PUT — full replace конкретной версии: реестр удаляет все её прежние файлы и зависимости.
       await $fetch(`/api/plugins/${encodeURIComponent(slug.value)}/${encodeURIComponent(values.version)}`, {
         method: "PUT",
         body,

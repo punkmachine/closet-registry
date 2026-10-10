@@ -15,7 +15,7 @@ const props = withDefaults(
   { as: "a" },
 );
 
-// Обычный <a> ждёт href, роутерные ссылки (NuxtLink/RouterLink) — to.
+/** Обычный <a> ждёт href, роутерные ссылки (NuxtLink/RouterLink) — to. */
 const linkProps = computed(() => (typeof props.as === "string" ? { href: props.to } : { to: props.to }));
 </script>
 

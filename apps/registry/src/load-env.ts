@@ -2,10 +2,15 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { config } from "dotenv";
 
-// На монорепо один общий .env в корне (его же читает docker compose через --env-file),
-// плюс необязательный локальный override apps/registry/.env. dotenv не перезатирает уже
-// определённые переменные, поэтому локальный файл читается первым и имеет приоритет.
-// В Docker переменные приходят из окружения — отсутствие обоих файлов не ошибка.
+/**
+ * Ищет корень монорепо по `pnpm-workspace.yaml`, поднимаясь вверх не больше чем на 5 уровней.
+ *
+ * @remarks
+ * Корневой `.env` общий (его же читает docker compose через `--env-file`), плюс необязательный локальный
+ * override `apps/registry/.env`. dotenv не перезатирает уже определённые переменные, поэтому локальный
+ * файл читается первым и имеет приоритет. В Docker переменные приходят из окружения — отсутствие обоих
+ * файлов не ошибка.
+ */
 function findWorkspaceRoot(startDir: string): string | null {
   let current = startDir;
   for (let depth = 0; depth < 5; depth += 1) {

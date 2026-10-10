@@ -56,6 +56,14 @@ export default defineConfig({
           include: ["tests/unit/**/*.test.ts", "tests/components/**/*.test.ts"],
         },
       },
+      {
+        test: {
+          name: "codemods",
+          root: "./scripts",
+          environment: "node",
+          include: ["codemods/tests/**/*.test.ts"],
+        },
+      },
     ],
     coverage: {
       provider: "v8",

@@ -2,6 +2,9 @@ import type { PluginComponent, PluginFileAi } from "@closet/contract";
 import { Check, Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, Unique } from "typeorm";
 import type { PluginVersion } from "./plugin-version.entity.js";
 
+/**
+ *
+ */
 @Entity({ name: "plugin_files" })
 @Unique(["version", "component", "ai", "relativePath"])
 @Check(`"component" IN ('mcp', 'rules', 'hooks', 'agents', 'commands', 'skills', 'scripts')`)
@@ -14,11 +17,11 @@ export class PluginFile {
   @Index()
   declare version: PluginVersion;
 
-  // enum: mcp|rules|hooks|agents|commands|skills|scripts — text-колонка + CHECK, а не native enum (раздел 4 plan.md)
+  /** Один из `mcp|rules|hooks|agents|commands|skills|scripts`: text-колонка + CHECK, а не native enum. */
   @Column({ type: "text" })
   declare component: PluginComponent;
 
-  // null = файл общий для всех ИИ; иначе codex|claude-code (раздел 2.9 plan.md)
+  /** `null` — файл общий для всех ИИ; иначе `codex` или `claude-code`. */
   @Column({ type: "text", nullable: true })
   declare ai: PluginFileAi | null;
 

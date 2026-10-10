@@ -1,6 +1,7 @@
 import eslint from "@eslint/js";
 import vitest from "@vitest/eslint-plugin";
 import { defineConfig } from "eslint/config";
+import jsdoc from "eslint-plugin-jsdoc";
 import nodePlugin from "eslint-plugin-n";
 import security from "eslint-plugin-security";
 import unicorn from "eslint-plugin-unicorn";
@@ -77,6 +78,32 @@ export default defineConfig(
       // JSDoc-комментарии появятся на этапе 05 — стиль комментариев не навязываем
       "unicorn/single-line-block-comment-style": "off",
       "unicorn/no-asterisk-prefix-in-documentation-comments": "off",
+    },
+  },
+
+  {
+    files: ["apps/*/src/**/*.ts", "apps/admin-panel/{app,server,shared}/**/*.ts", "packages/*/src/**/*.ts"],
+    plugins: { jsdoc },
+    rules: {
+      "jsdoc/require-jsdoc": [
+        "warn",
+        {
+          publicOnly: true,
+          require: {
+            FunctionDeclaration: true,
+            ArrowFunctionExpression: true,
+            ClassDeclaration: true,
+            MethodDefinition: true,
+          },
+        },
+      ],
+      "jsdoc/require-description": "warn",
+      "jsdoc/require-param-description": "warn",
+      "jsdoc/check-alignment": "warn",
+      "jsdoc/no-types": "error",
+      "jsdoc/require-param": "off",
+      "jsdoc/require-returns": "off",
+      "jsdoc/require-returns-type": "off",
     },
   },
 

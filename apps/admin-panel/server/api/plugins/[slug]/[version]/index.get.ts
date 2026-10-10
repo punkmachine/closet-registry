@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: "Не указан slug или version плагина" });
   }
 
-  // version может быть литералом "latest" — это поддерживает сам реестр.
+  /** version может быть литералом "latest" — это поддерживает сам реестр. */
   return await registryFetch<PluginBundle>(
     event,
     `/plugins/${encodeURIComponent(slug)}/${encodeURIComponent(version)}`,

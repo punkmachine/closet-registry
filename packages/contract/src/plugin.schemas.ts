@@ -7,8 +7,7 @@ import { MAX_CHANGELOG_LENGTH, MAX_DESCRIPTION_LENGTH } from "./limits.js";
 export const pluginComponentSchema = z.enum(PLUGIN_COMPONENTS);
 export const pluginFileAiSchema = z.enum(PLUGIN_FILE_AI_VALUES);
 
-// Без content — используется и для входящего multipart-запроса (метаданные файла),
-// и как база для ответа сервера (расширяется sha256/sizeBytes ниже).
+/** Метаданные файла без `content`: используются во входящем multipart-запросе и как база для ответа сервера. */
 const pluginFileObjectSchema = z.object({
   component: pluginComponentSchema,
   ai: pluginFileAiSchema.nullable().default(null),
@@ -25,8 +24,13 @@ export const pluginFileInputSchema = pluginFileObjectSchema.refine(
 );
 export type PluginFileInput = z.infer<typeof pluginFileInputSchema>;
 
+/**
+ * Метаданные файла в ответе сервера.
+ *
+ * @remarks
+ * `mergeKeyPath` здесь `nullable`, а не `optional` как во входной схеме: в БД он nullable, а не «может отсутствовать».
+ */
 export const pluginFileMetadataSchema = pluginFileObjectSchema.extend({
-  // В ответе сервера mergeKeyPath приходит из БД, где он nullable (не "может отсутствовать" как во входной схеме).
   mergeKeyPath: z.string().min(1).nullable(),
   sha256: z.string(),
   sizeBytes: z.string(),
@@ -75,8 +79,12 @@ export const pluginBundleParamsSchema = z.object({
   version: versionOrLatestSchema,
 });
 
-// Единый bundle-эндпоинт чтения: один запрос отдаёт содержимое всех файлов версии сразу.
-// encoding — эвристика на чтении (валидный UTF-8 без потерь -> "utf8" строкой, иначе "base64"), в БД не хранится.
+/**
+ * Файл в bundle-ответе: единый эндпоинт чтения отдаёт содержимое всех файлов версии одним запросом.
+ *
+ * @remarks
+ * `encoding` — эвристика на чтении (валидный UTF-8 без потерь → `utf8` строкой, иначе `base64`), в БД не хранится.
+ */
 export const pluginBundleFileSchema = pluginFileMetadataSchema.extend({
   encoding: z.enum(["utf8", "base64"]),
   content: z.string(),
@@ -93,9 +101,13 @@ export const pluginBundleResponseSchema = z.object({
 });
 export type PluginBundle = z.infer<typeof pluginBundleResponseSchema>;
 
-// GET /v1/plugins — листинг всех опубликованных плагинов (не версий): slug + latest semver.
-// Без пагинации в MVP — self-hosted реестр небольшого масштаба, добавить пагинацию можно позже
-// без breaking change (по умолчанию отдавать "первую страницу" целиком).
+/**
+ * Элемент `GET /v1/plugins`: опубликованный плагин (не версия) — slug и последняя semver-версия.
+ *
+ * @remarks
+ * Без пагинации в MVP: реестр self-hosted и небольшой, а добавить её можно без breaking change
+ * (по умолчанию отдавать «первую страницу» целиком).
+ */
 export const pluginListItemSchema = z.object({
   slug: z.string(),
   description: z.string(),
@@ -109,8 +121,12 @@ export const pluginListResponseSchema = z.object({
 });
 export type PluginListResponse = z.infer<typeof pluginListResponseSchema>;
 
-// GET /v1/plugins/:slug/versions — история версий одного плагина без содержимого файлов.
-// closet-cli этот эндпоинт не использует (ему достаточно "latest"), он нужен админке.
+/**
+ * Элемент `GET /v1/plugins/:slug/versions`: версия плагина без содержимого файлов.
+ *
+ * @remarks
+ * `closet-cli` этот эндпоинт не использует (ему достаточно `latest`), он нужен админке.
+ */
 export const pluginVersionListItemSchema = z.object({
   version: z.string(),
   changelog: z.string().nullable(),

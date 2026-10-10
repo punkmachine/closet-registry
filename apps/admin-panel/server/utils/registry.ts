@@ -8,8 +8,10 @@ import type { H3Event } from "h3";
 function resolveRegistryTarget(event: H3Event): { baseUrl: string; token: string } {
   const config = useRuntimeConfig(event);
 
-  // NUXT_REGISTRY_URL / NUXT_REGISTRY_TOKEN — штатный путь Nuxt, REGISTRY_URL / ADMIN_TOKEN —
-  // те же имена, что уже есть в общем .env монорепо, чтобы не дублировать секрет под двумя ключами.
+  /**
+   * NUXT_REGISTRY_URL / NUXT_REGISTRY_TOKEN — штатный путь Nuxt, REGISTRY_URL / ADMIN_TOKEN —
+   * те же имена, что уже есть в общем .env монорепо, чтобы не дублировать секрет под двумя ключами.
+   */
   const baseUrl = (config.registryUrl || process.env.REGISTRY_URL || "http://127.0.0.1:3000").replace(/\/+$/, "");
   const token = config.registryToken || process.env.ADMIN_TOKEN || "";
 
@@ -23,6 +25,9 @@ function resolveRegistryTarget(event: H3Event): { baseUrl: string; token: string
   return { baseUrl, token };
 }
 
+/**
+ *
+ */
 export function registryBaseUrl(event: H3Event): string {
   return resolveRegistryTarget(event).baseUrl;
 }
@@ -87,7 +92,7 @@ async function extractErrorMessage(response: Response): Promise<string> {
       return parsed.error;
     }
   } catch {
-    // не JSON — отдаём как есть, обрезав, чтобы HTML-страница ошибки не улетела целиком в UI
+    /** не JSON — отдаём как есть, обрезав, чтобы HTML-страница ошибки не улетела целиком в UI */
   }
 
   return text.slice(0, 500);
