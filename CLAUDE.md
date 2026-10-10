@@ -40,7 +40,7 @@
 ```bash
 pnpm install              # установка зависимостей
 pnpm dev                  # tsx watch src/server.ts
-pnpm build                # tsc -p tsconfig.json -> dist/
+pnpm build                # tsc -p tsconfig.build.json -> dist/ (только src/; tsconfig.json включает ещё и tests/ для typecheck/ESLint)
 pnpm start                # node dist/server.js (после build)
 pnpm typecheck            # tsc --noEmit
 pnpm migration:run        # tsx src/db/run-migrations.ts (накатить миграции TypeORM)
@@ -144,12 +144,15 @@ pnpm test                 # vitest run (тестового набора пока
 
 ### `PUT /v1/admin/plugins/:slug/:version` — это full replace, не patch
 
-`upsertPluginVersion` каждый раз удаляет и пересоздаёт все `PluginDependency`
+`updatePluginVersion` каждый раз удаляет и пересоздаёт все `PluginDependency`
 плагина и все `PluginFile` версии (`replacePluginDependencies`/
 `replaceVersionFiles`), а `writeVersionFiles` перед записью грохает всю
 директорию версии на диске (`fs.rm(versionDir, { recursive: true, force: true
 })`). Тело запроса должно содержать полный набор файлов и зависимостей версии,
-а не только изменившиеся.
+а не только изменившиеся. PUT — не upsert: на несуществующий плагин, несуществующую или
+soft-deleted версию отвечает `404 Plugin <slug>@<version> not found` и ничего не создаёт
+(в т.ч. не воскрешает); создание версий и воскрешение slug — только `POST`. Проверка
+существования идёт до `writeVersionFiles`, чтобы не снести файлы чужой версии.
 
 ### Грабли TypeORM в `plugins-repository.ts`
 

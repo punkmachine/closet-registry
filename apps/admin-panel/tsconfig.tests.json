@@ -1,0 +1,5 @@
+{
+  // Тесты лежат вне сгенерированных Nuxt'ом конфигов (.nuxt/*), поэтому у них свой проект поверх app-конфига
+  "extends": "./.nuxt/tsconfig.app.json",
+  "include": ["./.nuxt/nuxt.d.ts", "./tests/**/*.ts"]
+}

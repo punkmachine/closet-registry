@@ -1,0 +1,8 @@
+{
+  // Корневой tsconfig нужен только для typecheck/ESLint корневых конфигов (vitest.config.ts)
+  "extends": "./packages/config/tsconfig/node.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["vitest.config.ts"]
+}

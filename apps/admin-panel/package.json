@@ -14,7 +14,7 @@
     "start": "node .output/server/index.mjs",
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
-    "test": "echo \"no tests\" && exit 0"
+    "test": "vitest run --root ../.. --project admin-unit"
   },
   "dependencies": {
     "@closet/contract": "workspace:*",
@@ -25,8 +25,13 @@
   },
   "devDependencies": {
     "@closet/config": "workspace:*",
+    "@nuxt/test-utils": "^4.3.3",
     "@types/node": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "@vue/test-utils": "^2.5.1",
+    "happy-dom": "catalog:",
     "typescript": "catalog:",
+    "vitest": "catalog:",
     "vue-tsc": "^3.3.11"
   }
 }

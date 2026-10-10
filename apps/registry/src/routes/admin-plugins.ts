@@ -13,6 +13,7 @@ import { PathTraversalError, writeVersionFiles } from "../registry/file-store.js
 import { collectMultipartParts, formatZodError, parseMetadataJson } from "../registry/multipart-helpers.js";
 import type { PluginFileInsert } from "../registry/plugins-repository.js";
 import {
+  findActiveVersionBySlugAndVersion,
   findAnyVersion,
   findMissingDependencySlugs,
   PluginVersionConflictError,
@@ -20,7 +21,7 @@ import {
   softDeletePlugin,
   softDeleteVersion,
   toPluginVersionResult,
-  upsertPluginVersion,
+  updatePluginVersion,
 } from "../registry/plugins-repository.js";
 
 type PluginFileMeta = z.infer<typeof pluginPublishMetadataSchema>["files"][number];
@@ -210,6 +211,13 @@ const adminPluginsRoutes: FastifyPluginAsyncZod = async (fastify) => {
         return;
       }
 
+      // Проверяем существование ДО записи на диск: writeVersionFiles сносит директорию версии.
+      const existingVersion = await findActiveVersionBySlugAndVersion(orm, slug, version);
+      if (!existingVersion) {
+        reply.code(404).send({ error: `Plugin ${slug}@${version} not found` });
+        return;
+      }
+
       const missingDeps = await findMissingDependencySlugs(orm, body.dependencies);
       if (missingDeps.length > 0) {
         reply.code(404).send({ error: `Unknown dependencies: ${missingDeps.join(", ")}` });
@@ -227,7 +235,7 @@ const adminPluginsRoutes: FastifyPluginAsyncZod = async (fastify) => {
         throw error;
       }
 
-      const { plugin, version: savedVersion } = await upsertPluginVersion(orm, {
+      const updated = await updatePluginVersion(orm, {
         slug,
         description: body.description,
         version,
@@ -236,7 +244,13 @@ const adminPluginsRoutes: FastifyPluginAsyncZod = async (fastify) => {
         files: buildFilesForInsert(body.files, written),
       });
 
-      reply.code(200).send(toPluginVersionResult(plugin, savedVersion, body.dependencies));
+      // Версию могли удалить между проверкой и транзакцией — тогда тоже 404.
+      if (!updated) {
+        reply.code(404).send({ error: `Plugin ${slug}@${version} not found` });
+        return;
+      }
+
+      reply.code(200).send(toPluginVersionResult(updated.plugin, updated.version, body.dependencies));
     },
   );
 

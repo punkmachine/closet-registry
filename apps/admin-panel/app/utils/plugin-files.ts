@@ -111,7 +111,7 @@ export function classifyPath(rawPath: string): {
   return { component, ai, relativePath: rest.join("/") || fileName };
 }
 
-function guessComponentByFileName(fileName: string): PluginComponent {
+export function guessComponentByFileName(fileName: string): PluginComponent {
   const lower = fileName.toLowerCase();
 
   if (lower === "mcp.json" || lower === ".mcp.json" || lower.endsWith(".mcp.json")) {

@@ -13,8 +13,12 @@
     "dev:admin": "pnpm build:packages && pnpm --filter @closet/admin-panel dev",
     "build:packages": "pnpm --filter \"./packages/*\" build",
     "build": "pnpm build:packages && pnpm --filter \"./apps/*\" build",
-    "typecheck": "pnpm build:packages && pnpm --filter \"./packages/*\" --filter \"./apps/*\" typecheck",
-    "test": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" --if-present test",
+    "typecheck": "pnpm build:packages && tsc --noEmit -p tsconfig.json && pnpm --filter \"./packages/*\" --filter \"./apps/*\" typecheck",
+    "test": "vitest run",
+    "test:unit": "vitest run --project contract --project registry-unit --project admin-unit",
+    "test:api": "vitest run --project registry-api",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "format": "biome format --write .",
     "format:check": "biome check .",
     "lint": "eslint .",
@@ -26,6 +30,8 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
     "@eslint/js": "^10.0.1",
+    "@vitejs/plugin-vue": "^6.0.9",
+    "@vitest/coverage-v8": "catalog:",
     "@vitest/eslint-plugin": "^1.6.27",
     "eslint": "^10.12.0",
     "eslint-plugin-import": "^2.32.0",
@@ -35,7 +41,10 @@
     "jiti": "^2.7.0",
     "nano-staged": "^1.0.2",
     "simple-git-hooks": "^2.14.0",
-    "typescript-eslint": "^8.71.0"
+    "typescript": "catalog:",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "catalog:",
+    "vue": "^3.5.43"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm nano-staged",

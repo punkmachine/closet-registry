@@ -168,25 +168,34 @@ export async function publishPluginVersion(
   });
 }
 
-export async function upsertPluginVersion(
+// Full replace СУЩЕСТВУЮЩЕЙ активной версии активного плагина. Ничего не создаёт и не "воскрешает":
+// публикация новых версий и воскрешение soft-deleted slug — только через publishPluginVersion (POST).
+// Возвращает null, если плагин или версия не найдены / удалены (роут отвечает 404).
+export async function updatePluginVersion(
   dataSource: DataSource,
   input: PluginVersionWriteInput,
-): Promise<{ plugin: Plugin; version: PluginVersion }> {
+): Promise<{ plugin: Plugin; version: PluginVersion } | null> {
   return await dataSource.transaction(async (manager) => {
-    const plugin = await upsertPluginRecord(manager, input.slug, input.description);
+    const plugin = await manager.getRepository(Plugin).findOne({ where: { slug: input.slug, deleted: false } });
+    if (!plugin) {
+      return null;
+    }
+
+    const versionRepo = manager.getRepository(PluginVersion);
+    const existing = await versionRepo.findOne({
+      where: { version: input.version, deleted: false, plugin: { id: plugin.id } },
+    });
+    if (!existing) {
+      return null;
+    }
+
+    plugin.description = input.description;
+    await manager.getRepository(Plugin).save(plugin);
 
     await replacePluginDependencies(manager, plugin, input.dependencySlugs);
 
-    const versionRepo = manager.getRepository(PluginVersion);
-    let version = await versionRepo.findOne({ where: { version: input.version, plugin: { id: plugin.id } } });
-    if (version) {
-      version.changelog = input.changelog;
-      version.deleted = false;
-      version.deletedAt = null;
-    } else {
-      version = versionRepo.create({ plugin, version: input.version, changelog: input.changelog });
-    }
-    version = await versionRepo.save(version);
+    existing.changelog = input.changelog;
+    const version = await versionRepo.save(existing);
     version.files = await replaceVersionFiles(manager, version, input.files);
 
     return { plugin, version };

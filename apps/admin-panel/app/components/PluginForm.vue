@@ -135,7 +135,7 @@ function toggleDependency(depSlug: string): void {
     : [...dependencies.value, depSlug];
 }
 
-const dependencyOptions = computed(() => props.availablePlugins.filter((plugin) => plugin.slug !== slug.value));
+const dependencyOptions = computed(() => props.availablePlugins.filter((plugin) => plugin.slug !== slug.value.trim()));
 
 /* ---------- отправка ---------- */
 

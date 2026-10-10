@@ -17,7 +17,7 @@ import {
   getDependencySlugs,
 } from "../registry/plugins-repository.js";
 
-function detectEncoding(content: Buffer): { encoding: "utf8" | "base64"; text: string } {
+export function detectEncoding(content: Buffer): { encoding: "utf8" | "base64"; text: string } {
   const decoded = content.toString("utf8");
   const roundTrips = Buffer.from(decoded, "utf8").equals(content);
   return roundTrips ? { encoding: "utf8", text: decoded } : { encoding: "base64", text: content.toString("base64") };

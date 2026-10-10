@@ -1,0 +1,1 @@
+{"root":["./.nuxt/nuxt.d.ts","./tests/shims-vue.d.ts","./tests/components/componentbadge.test.ts","./tests/components/confirmdialog.test.ts","./tests/components/pluginform.test.ts","./tests/unit/format.test.ts","./tests/unit/plugin-files.test.ts","./tests/unit/ui-format.test.ts"],"errors":true,"version":"5.9.3"}

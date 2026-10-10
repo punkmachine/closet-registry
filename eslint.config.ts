@@ -15,6 +15,7 @@ export default defineConfig(
   {
     ignores: [
       "**/dist/**",
+      "**/coverage/**",
       "**/.nuxt/**",
       "**/.output/**",
       "**/node_modules/**",
@@ -125,5 +126,27 @@ export default defineConfig(
   {
     files: ["**/*.test.ts", "**/*.spec.ts"],
     extends: [vitest.configs.recommended],
+  },
+
+  // Тесты и тестовые хелперы: стилистические правила unicorn и security шумят, не защищая прод-код
+  {
+    files: ["**/tests/**/*.ts", "vitest.config.ts"],
+    rules: {
+      // файлы компонентных тестов называются по компоненту (ConfirmDialog.test.ts)
+      "unicorn/filename-case": "off",
+      // Biome форматирует hex в нижнем регистре — правило конфликтует с форматтером
+      "unicorn/number-literal-case": "off",
+      // вложенные expect(...)/Buffer.from(...) в тестах читаются лучше, чем промежуточные переменные
+      "unicorn/max-nested-calls": "off",
+      "unicorn/no-await-expression-member": "off",
+      "unicorn/consistent-function-scoping": "off",
+      "unicorn/prefer-iterator-to-array": "off",
+      "unicorn/require-array-sort-compare": "off",
+      "unicorn/no-array-sort": "off",
+      // пути в тестах — всегда tmp-директории самих тестов, а не пользовательский ввод
+      "security/detect-non-literal-fs-filename": "off",
+      // fake-репозиторий повторяет async-сигнатуру настоящего, хотя внутри синхронный
+      "@typescript-eslint/require-await": "off",
+    },
   },
 );
