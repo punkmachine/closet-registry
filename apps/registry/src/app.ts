@@ -8,11 +8,14 @@ import {
 import type { FastifyError, FastifyInstance } from "fastify";
 import Fastify from "fastify";
 
+import { HttpError } from "./errors/http-error.js";
 import adminAuthPlugin from "./plugins/admin-auth.js";
 import multipartPlugin from "./plugins/multipart.js";
 import postgresPlugin from "./plugins/postgres.js";
 import rateLimitPlugin from "./plugins/rate-limit.js";
 import typeormPlugin from "./plugins/typeorm.js";
+import { PathTraversalError } from "./registry/file-store.js";
+import { PluginVersionConflictError } from "./registry/plugins-repository.js";
 import adminPluginsRoutes from "./routes/admin-plugins.js";
 import healthRoutes from "./routes/health.js";
 import pluginsRoutes from "./routes/plugins.js";
@@ -38,10 +41,27 @@ export async function buildApp(): Promise<FastifyInstance> {
       return;
     }
 
+    if (error instanceof PathTraversalError) {
+      reply.code(400).send({ error: error.message });
+      return;
+    }
+
+    if (error instanceof HttpError) {
+      reply.code(error.statusCode).send({ error: error.message });
+      return;
+    }
+
+    if (error instanceof PluginVersionConflictError) {
+      reply.code(409).send({ error: error.message });
+      return;
+    }
+
     const statusCode = error.statusCode ?? 500;
+
     if (statusCode >= 500) {
       request.log.error(error);
     }
+
     reply.code(statusCode).send({ error: error.message });
   });
 
@@ -59,11 +79,6 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   await app.register(
     async (v1Scope) => {
-      // Один статический токен на self-hosted-инстанс проверяется на ВСЕХ /v1/* эндпоинтах, включая
-      // публичное чтение, а не только admin/write — поэтому auth регистрируется
-      // прямо в v1Scope, а не только во вложенном /v1/admin. adminAuthPlugin обёрнут в fp(), поэтому его
-      // onRequest-хук поднимается ровно до v1Scope и оттуда наследуется всеми дочерними register()-вызовами
-      // ниже, включая statsRoutes/pluginsRoutes и вложенный adminScope.
       await v1Scope.register(adminAuthPlugin);
 
       await v1Scope.register(statsRoutes);

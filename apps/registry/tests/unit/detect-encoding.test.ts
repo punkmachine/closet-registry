@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-
-import { detectEncoding } from "../../src/routes/plugins.js";
+import { detectEncoding } from "../../src/services/read-bundle.service.js";
 
 describe("detectEncoding", () => {
   it("валидный UTF-8 (в т.ч. кириллица) отдаёт как utf8", () => {

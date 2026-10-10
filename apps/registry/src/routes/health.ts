@@ -1,16 +1,9 @@
 import { healthResponseSchema } from "@closet/contract";
 import type { FastifyPluginAsyncZod } from "@fastify/type-provider-zod";
+import { createHealthController } from "../controllers/health.controller.js";
 
 const healthRoutes: FastifyPluginAsyncZod = async (fastify) => {
-  fastify.get("/health", { schema: { response: { 200: healthResponseSchema } } }, async (request) => {
-    try {
-      await fastify.pg.query("SELECT 1");
-      return { status: "ok" as const, db: "ok" as const };
-    } catch (error) {
-      request.log.error(error);
-      return { status: "ok" as const, db: "error" as const };
-    }
-  });
+  fastify.get("/health", { schema: { response: { 200: healthResponseSchema } } }, createHealthController(fastify.pg));
 };
 
 export default healthRoutes;
