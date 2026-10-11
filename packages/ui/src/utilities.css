@@ -16,33 +16,43 @@
 .mono {
   font-family: var(--font-mono);
 }
+
 .muted {
   color: var(--text-secondary);
 }
+
 .dim {
   color: var(--text-tertiary);
 }
+
 .tiny {
   font-size: 12px;
 }
+
 .nowrap {
   white-space: nowrap;
 }
+
 .spacer {
   flex: 1;
 }
+
 .mt-0 {
   margin-top: 0;
 }
+
 .mt-2 {
   margin-top: 8px;
 }
+
 .mt-3 {
   margin-top: 12px;
 }
+
 .mt-4 {
   margin-top: 16px;
 }
+
 .mb-3 {
   margin-bottom: 12px;
 }

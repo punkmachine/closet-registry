@@ -84,3 +84,85 @@ async function onSubmit(values: PluginFormValues, publishMode: "replace" | "new"
     />
   </div>
 </template>
+
+<style scoped>
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.page-head__text {
+  flex: 1;
+  min-width: 260px;
+}
+
+.page-head__sub {
+  margin-top: 6px;
+  color: var(--text-secondary);
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 13px;
+}
+
+.alert--error {
+  border-color: #6e2b28;
+  background: var(--danger-bg);
+  color: #ffb3ab;
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 56px 24px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: #161b2280;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.state__title {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: #e6edf3;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #ffffff26;
+  border-top-color: var(--accent);
+  border-radius: 999px;
+  animation: spin 0.7s linear infinite;
+  flex: none;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+</style>

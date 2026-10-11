@@ -29,8 +29,10 @@
 - `@closet/config` — общие tsconfig (`tsconfig/base|node|vue.json`). `apps/admin-panel/tsconfig.json`
   остаётся ссылкой на сгенерированные Nuxt'ом конфиги.
 - `@closet/ui` — Vue-компоненты (`ComponentBadge`, `PluginCard`, `ConfirmDialog`,
-  `FileBrowser`) + `tokens.css` + `styles.css`; исходники без сборки, Nuxt транспилирует
-  (`build.transpile`). `PluginForm` остался в админке (завязан на `utils/plugin-files.ts`
+  `FileBrowser`) + `tokens.css` + `utilities.css`; исходники без сборки, Nuxt транспилирует
+  (`build.transpile`). Глобальных `.css` всего три: `tokens.css`, `utilities.css` (пакет ui) и
+  `main.css` (reset/типографика админки); всё остальное — `<style scoped>` в самих компонентах,
+  общие куски (`.btn`, `.badge`, `.panel`…) намеренно продублированы по файлам. `PluginForm` остался в админке (завязан на `utils/plugin-files.ts`
   и Nuxt). Ссылку `PluginCard` принимает пропом `as` (например `NuxtLink`).
 
 ## Команды разработки

@@ -3,7 +3,7 @@ export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   devtools: { enabled: true },
 
-  css: ["@closet/ui/tokens.css", "@closet/ui/styles.css", "~/assets/css/main.css"],
+  css: ["@closet/ui/tokens.css", "@closet/ui/utilities.css", "~/assets/css/main.css"],
 
   build: { transpile: ["@closet/ui", "@closet/contract"] },
 

@@ -50,3 +50,33 @@ async function onSubmit(values: PluginFormValues): Promise<void> {
     />
   </div>
 </template>
+
+<style scoped>
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.page-head__text {
+  flex: 1;
+  min-width: 260px;
+}
+
+.page-head__sub {
+  margin-top: 6px;
+  color: var(--text-secondary);
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+</style>

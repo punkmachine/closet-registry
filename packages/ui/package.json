@@ -8,7 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./tokens.css": "./src/tokens.css",
-    "./styles.css": "./src/styles.css"
+    "./utilities.css": "./src/utilities.css"
   },
   "files": ["src"],
   "scripts": {
