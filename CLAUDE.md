@@ -73,8 +73,6 @@ pnpm test                 # vitest run (тестового набора пока
   Не возвращать TS 7, пока typescript-eslint его не поддержит.
 - Git-хуки (`simple-git-hooks` + `nano-staged`): pre-commit гоняет `biome check --write` и
   `eslint --fix` по staged-файлам, pre-push — `format:check`, `lint`, `typecheck`, `test`.
-- `pnpm typecheck` в `apps/admin-panel` сейчас падает на 3 ошибках, существовавших до этапа 02
-  (`$fetch` method `PUT`/`DELETE` в `edit.vue`/`index.vue`, `BlobPart` в `plugin-files.ts`).
 
 ## Архитектура
 
