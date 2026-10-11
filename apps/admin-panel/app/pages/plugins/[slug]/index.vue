@@ -98,9 +98,8 @@ async function confirmDelete(): Promise<void> {
       return;
     }
 
-    await $fetch(`/api/plugins/${encodeURIComponent(slug.value)}/${encodeURIComponent(target.version)}`, {
-      method: "DELETE",
-    });
+    const versionUrl: string = `/api/plugins/${encodeURIComponent(slug.value)}/${encodeURIComponent(target.version)}`;
+    await $fetch(versionUrl, { method: "DELETE" });
 
     deleteTarget.value = null;
     /** Если удалили последнюю версию, плагин уходит из листинга — возвращаемся на главную. */

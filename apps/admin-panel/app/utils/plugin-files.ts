@@ -303,7 +303,7 @@ export function buildFormData(values: PluginFormValues): FormData {
   formData.append("metadata", JSON.stringify(metadata));
 
   for (const file of values.files) {
-    const payload: BlobPart = file.kind === "binary" && file.bytes ? file.bytes : file.text;
+    const payload: BlobPart = file.kind === "binary" && file.bytes ? new Uint8Array(file.bytes) : file.text;
     const fileName = file.relativePath.split("/").at(-1) || "file";
     formData.append(multipartFieldName(file), new Blob([payload]), fileName);
   }

@@ -25,10 +25,8 @@ async function onSubmit(values: PluginFormValues, publishMode: "replace" | "new"
     const body = buildFormData(values);
 
     if (publishMode === "replace") {
-      await $fetch(`/api/plugins/${encodeURIComponent(slug.value)}/${encodeURIComponent(values.version)}`, {
-        method: "PUT",
-        body,
-      });
+      const url: string = `/api/plugins/${encodeURIComponent(slug.value)}/${encodeURIComponent(values.version)}`;
+      await $fetch(url, { method: "PUT", body });
     } else {
       await $fetch("/api/plugins", { method: "POST", body });
     }
