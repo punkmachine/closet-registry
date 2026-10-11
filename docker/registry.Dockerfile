@@ -20,7 +20,7 @@ RUN pnpm --filter @closet/contract build && pnpm --filter @closet/registry build
 
 FROM manifests AS runtime
 ENV NODE_ENV=production
-RUN pnpm install --frozen-lockfile --prod --filter "@closet/registry..." && pnpm store prune
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts --filter "@closet/registry..." && pnpm store prune
 
 COPY --from=build /app/packages/contract/dist ./packages/contract/dist
 COPY --from=build /app/apps/registry/dist ./apps/registry/dist
