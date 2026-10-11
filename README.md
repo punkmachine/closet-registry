@@ -21,6 +21,10 @@ cd closet-registry
 }
 ```
 
+## Roadmap
+
+Планы развития — в [ROADMAP.md](ROADMAP.md).
+
 ## Разработка
 
 Node 22+, pnpm 11, Postgres на localhost.
