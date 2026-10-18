@@ -3,14 +3,7 @@ import { z } from "zod";
 export const USER_ROLES = ["admin", "developer", "guest"] as const;
 export const ASSIGNABLE_ROLES = ["developer", "guest"] as const;
 
-/**
- * Роль пользователя. Права роли — в `ROLE_PERMISSIONS`.
- */
 export const userRoleSchema = z.enum(USER_ROLES);
-
-/**
- * Роль, которую admin может назначить через API: `admin` создаётся только bootstrap'ом.
- */
 export const assignableRoleSchema = z.enum(ASSIGNABLE_ROLES);
 
 export const PERMISSION_ACTIONS = ["read", "write", "update", "delete"] as const;
@@ -103,6 +96,10 @@ export const meResponseSchema = z.object({
   user: userSchema,
 });
 
+export const userResponseSchema = z.object({
+  user: userSchema,
+});
+
 export const userListResponseSchema = z.object({
   users: z.array(userSchema),
 });
@@ -182,6 +179,7 @@ export type LoginBody = z.infer<typeof loginBodySchema>;
 export type User = z.infer<typeof userSchema>;
 export type LoginResponse = z.infer<typeof loginResponseSchema>;
 export type MeResponse = z.infer<typeof meResponseSchema>;
+export type UserResponse = z.infer<typeof userResponseSchema>;
 export type UserListResponse = z.infer<typeof userListResponseSchema>;
 export type NewUserBody = z.infer<typeof newUserBodySchema>;
 export type PatchUserBody = z.infer<typeof patchUserBodySchema>;

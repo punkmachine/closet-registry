@@ -1,5 +1,5 @@
 import type { AssignableRole, UserRole } from "@closet/contract";
-import type { DataSource } from "typeorm";
+import type { DataSource, EntityManager } from "typeorm";
 import { QueryFailedError } from "typeorm";
 import { User } from "../../db/entities/index.js";
 
@@ -57,12 +57,12 @@ export async function findActiveUserByUsername(dataSource: DataSource, username:
 /**
  * Ищет не удалённого пользователя по id.
  *
- * @param dataSource - источник данных
+ * @param manager - источник данных или менеджер транзакции
  * @param id - id пользователя
  * @returns пользователь или `null`
  */
-export async function findActiveUserById(dataSource: DataSource, id: string): Promise<User | null> {
-  return await dataSource.getRepository(User).findOne({ where: { id, deleted: false } });
+export async function findActiveUserById(manager: DataSource | EntityManager, id: string): Promise<User | null> {
+  return await manager.getRepository(User).findOne({ where: { id, deleted: false } });
 }
 
 /**
@@ -78,11 +78,25 @@ export async function listActiveUsers(dataSource: DataSource): Promise<User[]> {
 /**
  * Число активных (не удалённых и не заблокированных админом) admin. Нужно для защиты последнего admin.
  *
- * @param dataSource - источник данных
+ * @param manager - источник данных или менеджер транзакции
+ * @param options - `lock`: взять `FOR UPDATE` на строки admin (только внутри транзакции), чтобы две параллельные
+ * операции не убрали последних двух admin одновременно
  * @returns количество активных admin
  */
-export async function countActiveAdmins(dataSource: DataSource): Promise<number> {
-  return await dataSource.getRepository(User).count({ where: { role: "admin", deleted: false, disabled: false } });
+export async function countActiveAdmins(
+  manager: DataSource | EntityManager,
+  options: { lock?: boolean } = {},
+): Promise<number> {
+  const repo = manager.getRepository(User);
+  const where = { role: "admin", deleted: false, disabled: false } as const;
+
+  if (!options.lock) {
+    return await repo.count({ where });
+  }
+
+  const locked = await repo.find({ where, select: { id: true }, lock: { mode: "pessimistic_write" } });
+
+  return locked.length;
 }
 
 /**
@@ -112,13 +126,17 @@ export async function createUser(dataSource: DataSource, input: NewUserInput): P
  * Применяет изменения роли/блокировки. Отзыв сессий и токенов при смене роли или блокировке — на вызывающем
  * (`revokeAllCredentials`).
  *
- * @param dataSource - источник данных
+ * @param manager - источник данных или менеджер транзакции
  * @param id - id пользователя
  * @param patch - изменения
  * @returns обновлённый пользователь или `null`, если его нет или он удалён
  */
-export async function updateUser(dataSource: DataSource, id: string, patch: UserPatch): Promise<User | null> {
-  const repo = dataSource.getRepository(User);
+export async function updateUser(
+  manager: DataSource | EntityManager,
+  id: string,
+  patch: UserPatch,
+): Promise<User | null> {
+  const repo = manager.getRepository(User);
   const user = await repo.findOne({ where: { id, deleted: false } });
 
   if (!user) {
@@ -144,18 +162,18 @@ export async function updateUser(dataSource: DataSource, id: string, patch: User
 /**
  * Задаёт новый хеш пароля и снимает блокировку входа.
  *
- * @param dataSource - источник данных
+ * @param manager - источник данных или менеджер транзакции
  * @param id - id пользователя
  * @param passwordHash - хеш из `hashPassword`
  * @param mustChangePassword - `true` для сброса админом (юзер обязан сменить пароль при входе)
  */
 export async function setUserPassword(
-  dataSource: DataSource,
+  manager: DataSource | EntityManager,
   id: string,
   passwordHash: string,
   mustChangePassword: boolean,
 ): Promise<void> {
-  await dataSource
+  await manager
     .getRepository(User)
     .update({ id }, { passwordHash, mustChangePassword, failedAttempts: 0, lockedUntil: null });
 }
@@ -164,13 +182,17 @@ export async function setUserPassword(
  * Мягко удаляет пользователя. `username` освобождается (индекс уникальности только среди `deleted = false`),
  * ссылки `created_by_id` / `updated_by_id` остаются валидными.
  *
- * @param dataSource - источник данных
+ * @param manager - источник данных или менеджер транзакции
  * @param id - id пользователя
  * @param now - момент удаления
  * @returns `true`, если пользователь был и удалён
  */
-export async function softDeleteUser(dataSource: DataSource, id: string, now: Date = new Date()): Promise<boolean> {
-  const result = await dataSource.getRepository(User).update({ id, deleted: false }, { deleted: true, deletedAt: now });
+export async function softDeleteUser(
+  manager: DataSource | EntityManager,
+  id: string,
+  now: Date = new Date(),
+): Promise<boolean> {
+  const result = await manager.getRepository(User).update({ id, deleted: false }, { deleted: true, deletedAt: now });
 
   return (result.affected ?? 0) > 0;
 }

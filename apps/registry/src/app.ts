@@ -17,6 +17,7 @@ import typeormPlugin from "./plugins/typeorm.js";
 import { PathTraversalError } from "./registry/file-store.js";
 import { PluginVersionConflictError } from "./registry/plugins-repository.js";
 import adminPluginsRoutes from "./routes/admin-plugins.js";
+import adminUsersRoutes from "./routes/admin-users.js";
 import authRoutes from "./routes/auth.js";
 import healthRoutes from "./routes/health.js";
 import pluginsRoutes from "./routes/plugins.js";
@@ -101,6 +102,7 @@ export async function buildApp(): Promise<FastifyInstance> {
         async (adminScope) => {
           await adminScope.register(multipartPlugin);
           await adminScope.register(adminPluginsRoutes);
+          await adminScope.register(adminUsersRoutes);
         },
         { prefix: "/admin" },
       );
