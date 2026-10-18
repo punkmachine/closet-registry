@@ -30,6 +30,17 @@ vi.mock("../../src/auth/repository/api-tokens.js", async (importOriginal) => {
   };
 });
 
+vi.mock("../../src/auth/repository/audit.js", async (importOriginal) => {
+  const { fakeAuth } = await import("../helpers/fake-auth.js");
+  return {
+    ...(await importOriginal<Record<string, unknown>>()),
+    writeAuditEntry: (_dataSource: unknown, entry: Parameters<typeof fakeAuth.recordAuditEntry>[0]) => {
+      fakeAuth.recordAuditEntry(entry);
+      return Promise.resolve();
+    },
+  };
+});
+
 vi.mock("../../src/plugins/postgres.js", async () => {
   const { stubPostgresPlugin } = await import("../helpers/stub-plugins.js");
   return { default: stubPostgresPlugin };

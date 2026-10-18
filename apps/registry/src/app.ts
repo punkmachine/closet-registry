@@ -17,6 +17,7 @@ import typeormPlugin from "./plugins/typeorm.js";
 import { PathTraversalError } from "./registry/file-store.js";
 import { PluginVersionConflictError } from "./registry/plugins-repository.js";
 import adminPluginsRoutes from "./routes/admin-plugins.js";
+import authRoutes from "./routes/auth.js";
 import healthRoutes from "./routes/health.js";
 import pluginsRoutes from "./routes/plugins.js";
 import statsRoutes from "./routes/stats.js";
@@ -50,6 +51,10 @@ export async function buildApp(): Promise<FastifyInstance> {
     }
 
     if (error instanceof HttpError) {
+      if (error.headers) {
+        reply.headers(error.headers);
+      }
+
       reply
         .code(error.statusCode)
         .send(
@@ -88,6 +93,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     async (v1Scope) => {
       await v1Scope.register(authPlugin);
 
+      await v1Scope.register(authRoutes);
       await v1Scope.register(statsRoutes);
       await v1Scope.register(pluginsRoutes);
 

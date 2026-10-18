@@ -78,7 +78,6 @@ export const authorRefSchema = z.object({ username: z.string() });
 
 export const loginBodySchema = z.object({
   username: z.string().min(1).max(USERNAME_MAX_LENGTH),
-  // На входе пароль не валидируем правилами создания: старые/сгенерированные пароли должны пускать.
   password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
 });
 
@@ -97,6 +96,10 @@ export const userSchema = z.object({
 export const loginResponseSchema = z.object({
   token: z.string(),
   expiresAt: z.string(),
+  user: userSchema,
+});
+
+export const meResponseSchema = z.object({
   user: userSchema,
 });
 
@@ -178,6 +181,7 @@ export type AuthorRef = z.infer<typeof authorRefSchema>;
 export type LoginBody = z.infer<typeof loginBodySchema>;
 export type User = z.infer<typeof userSchema>;
 export type LoginResponse = z.infer<typeof loginResponseSchema>;
+export type MeResponse = z.infer<typeof meResponseSchema>;
 export type UserListResponse = z.infer<typeof userListResponseSchema>;
 export type NewUserBody = z.infer<typeof newUserBodySchema>;
 export type PatchUserBody = z.infer<typeof patchUserBodySchema>;

@@ -37,7 +37,7 @@ const adminPluginsRoutes: FastifyPluginAsyncZod = async (fastify) => {
       onRequest: writeGuard,
       config: adminRateLimitConfig,
     },
-    createPublishPluginController(publishService),
+    createPublishPluginController(fastify.orm, publishService),
   );
 
   fastify.put(
@@ -54,7 +54,7 @@ const adminPluginsRoutes: FastifyPluginAsyncZod = async (fastify) => {
       onRequest: writeGuard,
       config: adminRateLimitConfig,
     },
-    createUpdatePluginVersionController(publishService),
+    createUpdatePluginVersionController(fastify.orm, publishService),
   );
 
   fastify.delete(

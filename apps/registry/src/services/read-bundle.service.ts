@@ -6,6 +6,7 @@ import {
   findActiveVersionBySlugAndVersion,
   findLatestActiveVersion,
   getDependencySlugs,
+  toAuthorRef,
 } from "../registry/plugins-repository.js";
 
 /**
@@ -109,8 +110,8 @@ export function createReadBundleService(orm: DataSource): ReadBundleService {
           description: pluginVersion.plugin.description,
           version: pluginVersion.version,
           changelog: pluginVersion.changelog,
-          createdBy: { username: "unknown" },
-          updatedBy: { username: "unknown" },
+          createdBy: toAuthorRef(pluginVersion.createdBy),
+          updatedBy: toAuthorRef(pluginVersion.updatedBy),
           dependencies,
           files,
         };

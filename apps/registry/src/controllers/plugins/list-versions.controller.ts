@@ -30,9 +30,8 @@ export function createListVersionsController(orm: DataSource) {
         createdAt: item.createdAt.toISOString(),
         updatedAt: item.updatedAt.toISOString(),
         fileCount: item.fileCount,
-        // TODO: заглушка, подставлять реального автора из БД
-        createdBy: { username: "unknown" },
-        updatedBy: { username: "unknown" },
+        createdBy: item.createdBy,
+        updatedBy: item.updatedBy,
       })),
     });
   };

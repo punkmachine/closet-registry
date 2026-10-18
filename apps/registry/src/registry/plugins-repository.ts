@@ -6,6 +6,7 @@ import { Plugin } from "../db/entities/plugin.entity.js";
 import { PluginDependency } from "../db/entities/plugin-dependency.entity.js";
 import { PluginFile } from "../db/entities/plugin-file.entity.js";
 import { PluginVersion } from "../db/entities/plugin-version.entity.js";
+import type { User } from "../db/entities/user.entity.js";
 
 /**
  *
@@ -43,6 +44,7 @@ export interface PluginVersionWriteInput {
   changelog: string | null;
   dependencySlugs: string[];
   files: PluginFileInsert[];
+  actor: User;
 }
 
 export interface PluginVersionResult {
@@ -87,6 +89,8 @@ export async function findAnyVersion(
   });
 }
 
+const AUTHOR_RELATIONS = { createdBy: true, updatedBy: true } as const;
+
 /**
  * Создаёт плагин или обновляет описание существующего.
  *
@@ -94,11 +98,22 @@ export async function findAnyVersion(
  * Публикация новой версии «воскрешает» ранее мягко удалённый плагин под тем же slug: иначе slug
  * навсегда становится непереиспользуемым после soft delete.
  */
-async function upsertPluginRecord(manager: EntityManager, slug: string, description: string): Promise<Plugin> {
+async function upsertPluginRecord(
+  manager: EntityManager,
+  slug: string,
+  description: string,
+  actor: User,
+): Promise<Plugin> {
   const pluginRepo = manager.getRepository(Plugin);
-  const existing = await pluginRepo.findOne({ where: { slug } });
-  const plugin = existing ?? pluginRepo.create({ slug, description });
+  const existing = await pluginRepo.findOne({ where: { slug }, relations: AUTHOR_RELATIONS });
+  const plugin = existing ?? pluginRepo.create({ slug, description, createdBy: actor });
+
+  if (existing?.deleted === true) {
+    plugin.createdBy = actor;
+  }
+
   plugin.description = description;
+  plugin.updatedBy = actor;
   plugin.deleted = false;
   plugin.deletedAt = null;
   return await pluginRepo.save(plugin);
@@ -136,9 +151,19 @@ async function replaceVersionFiles(
   files: PluginFileInsert[],
 ): Promise<PluginFile[]> {
   const fileRepo = manager.getRepository(PluginFile);
+
   await fileRepo.createQueryBuilder().delete().where("version_id = :versionId", { versionId: version.id }).execute();
+
   const entities = fileRepo.create(files.map((file) => ({ ...file, version })));
+
   return await fileRepo.save(entities);
+}
+
+/**
+ * Краткая ссылка на автора для API.
+ */
+export function toAuthorRef(user: User): AuthorRef {
+  return { username: user.username };
 }
 
 /**
@@ -154,9 +179,8 @@ export function toPluginVersionResult(
     description: plugin.description,
     version: version.version,
     changelog: version.changelog,
-    // TODO: заглушка, подставлять реального автора из БД
-    createdBy: { username: "unknown" },
-    updatedBy: { username: "unknown" },
+    createdBy: toAuthorRef(version.createdBy),
+    updatedBy: toAuthorRef(version.updatedBy),
     dependencies: dependencySlugs,
     files: version.files.map((file) => ({
       component: file.component,
@@ -185,17 +209,24 @@ export async function publishPluginVersion(
   input: PluginVersionWriteInput,
 ): Promise<{ plugin: Plugin; version: PluginVersion }> {
   return await dataSource.transaction(async (manager) => {
-    const plugin = await upsertPluginRecord(manager, input.slug, input.description);
+    const plugin = await upsertPluginRecord(manager, input.slug, input.description, input.actor);
 
     const versionRepo = manager.getRepository(PluginVersion);
     const existingVersion = await versionRepo.findOne({ where: { version: input.version, plugin: { id: plugin.id } } });
+
     if (existingVersion) {
       throw new PluginVersionConflictError(input.slug, input.version);
     }
 
     await replacePluginDependencies(manager, plugin, input.dependencySlugs);
 
-    let version = versionRepo.create({ plugin, version: input.version, changelog: input.changelog });
+    let version = versionRepo.create({
+      plugin,
+      version: input.version,
+      changelog: input.changelog,
+      createdBy: input.actor,
+      updatedBy: input.actor,
+    });
     version = await versionRepo.save(version);
     version.files = await replaceVersionFiles(manager, version, input.files);
 
@@ -216,7 +247,10 @@ export async function updatePluginVersion(
   input: PluginVersionWriteInput,
 ): Promise<{ plugin: Plugin; version: PluginVersion } | null> {
   return await dataSource.transaction(async (manager) => {
-    const plugin = await manager.getRepository(Plugin).findOne({ where: { slug: input.slug, deleted: false } });
+    const plugin = await manager
+      .getRepository(Plugin)
+      .findOne({ where: { slug: input.slug, deleted: false }, relations: AUTHOR_RELATIONS });
+
     if (!plugin) {
       return null;
     }
@@ -224,17 +258,21 @@ export async function updatePluginVersion(
     const versionRepo = manager.getRepository(PluginVersion);
     const existing = await versionRepo.findOne({
       where: { version: input.version, deleted: false, plugin: { id: plugin.id } },
+      relations: AUTHOR_RELATIONS,
     });
+
     if (!existing) {
       return null;
     }
 
     plugin.description = input.description;
+    plugin.updatedBy = input.actor;
     await manager.getRepository(Plugin).save(plugin);
 
     await replacePluginDependencies(manager, plugin, input.dependencySlugs);
 
     existing.changelog = input.changelog;
+    existing.updatedBy = input.actor;
     const version = await versionRepo.save(existing);
     version.files = await replaceVersionFiles(manager, version, input.files);
 
@@ -256,12 +294,14 @@ export async function softDeleteVersion(
       where: { version, deleted: false, plugin: { slug, deleted: false } },
       relations: { plugin: true },
     });
+
     if (!found) {
       return null;
     }
 
     found.deleted = true;
     found.deletedAt = new Date();
+
     return await versionRepo.save(found);
   });
 }
@@ -276,7 +316,7 @@ export async function findActiveVersionBySlugAndVersion(
 ): Promise<PluginVersion | null> {
   return await dataSource.getRepository(PluginVersion).findOne({
     where: { version, deleted: false, plugin: { slug, deleted: false } },
-    relations: { plugin: true, files: true },
+    relations: { plugin: true, files: true, ...AUTHOR_RELATIONS },
   });
 }
 
@@ -290,7 +330,7 @@ export async function findActiveVersionBySlugAndVersion(
 export async function findLatestActiveVersion(dataSource: DataSource, slug: string): Promise<PluginVersion | null> {
   const versions = await dataSource.getRepository(PluginVersion).find({
     where: { deleted: false, plugin: { slug, deleted: false } },
-    relations: { plugin: true, files: true },
+    relations: { plugin: true, files: true, ...AUTHOR_RELATIONS },
   });
 
   return versions.length === 0
@@ -302,6 +342,8 @@ export interface PluginListItem {
   slug: string;
   description: string;
   latestVersion: string;
+  createdBy: AuthorRef;
+  updatedBy: AuthorRef;
   updatedAt: Date;
 }
 
@@ -315,7 +357,7 @@ export interface PluginListItem {
 export async function findAllActivePluginsWithLatestVersion(dataSource: DataSource): Promise<PluginListItem[]> {
   const plugins = await dataSource.getRepository(Plugin).find({
     where: { deleted: false },
-    relations: { versions: true },
+    relations: { versions: true, ...AUTHOR_RELATIONS },
     order: { slug: "ASC" },
   });
 
@@ -331,6 +373,8 @@ export async function findAllActivePluginsWithLatestVersion(dataSource: DataSour
       slug: plugin.slug,
       description: plugin.description,
       latestVersion: latest.version,
+      createdBy: toAuthorRef(plugin.createdBy),
+      updatedBy: toAuthorRef(plugin.updatedBy),
       updatedAt: plugin.updatedAt,
     });
   }
@@ -344,6 +388,8 @@ export interface PluginVersionListItem {
   createdAt: Date;
   updatedAt: Date;
   fileCount: number;
+  createdBy: AuthorRef;
+  updatedBy: AuthorRef;
 }
 
 /**
@@ -364,7 +410,7 @@ export async function findActiveVersionsBySlug(
 
   const versions = await dataSource.getRepository(PluginVersion).find({
     where: { deleted: false, plugin: { id: plugin.id } },
-    relations: { files: true },
+    relations: { files: true, ...AUTHOR_RELATIONS },
   });
 
   return versions
@@ -374,6 +420,8 @@ export async function findActiveVersionsBySlug(
       createdAt: version.createdAt,
       updatedAt: version.updatedAt,
       fileCount: version.files.length,
+      createdBy: toAuthorRef(version.createdBy),
+      updatedBy: toAuthorRef(version.updatedBy),
     }))
     .toSorted((a, b) => semver.rcompare(a.version, b.version));
 }
@@ -399,6 +447,7 @@ export async function softDeletePlugin(dataSource: DataSource, slug: string): Pr
     const versionRepo = manager.getRepository(PluginVersion);
 
     const plugin = await pluginRepo.findOne({ where: { slug, deleted: false } });
+
     if (!plugin) {
       return null;
     }
@@ -408,6 +457,7 @@ export async function softDeletePlugin(dataSource: DataSource, slug: string): Pr
     await pluginRepo.save(plugin);
 
     const activeVersions = await versionRepo.find({ where: { plugin: { id: plugin.id }, deleted: false } });
+
     if (activeVersions.length > 0) {
       const deletedAt = new Date();
       for (const activeVersion of activeVersions) {

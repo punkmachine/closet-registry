@@ -16,9 +16,8 @@ export function createListPluginsController(orm: DataSource) {
         slug: plugin.slug,
         description: plugin.description,
         latestVersion: plugin.latestVersion,
-        // TODO: заглушка, подставлять реального автора из БД
-        createdBy: { username: "unknown" },
-        updatedBy: { username: "unknown" },
+        createdBy: plugin.createdBy,
+        updatedBy: plugin.updatedBy,
         updatedAt: plugin.updatedAt.toISOString(),
       })),
     });

@@ -1,6 +1,7 @@
 import { pluginPublishMetadataSchema, pluginUpdateMetadataSchema } from "@closet/contract";
 import type { DataSource } from "typeorm";
 import type { z } from "zod";
+import type { User } from "../db/entities/index.js";
 import { BadRequestError, ConflictError, NotFoundError } from "../errors/http-error.js";
 import { writeVersionFiles } from "../registry/file-store.js";
 import { formatZodError, parseMetadataJson } from "../registry/multipart-helpers.js";
@@ -16,12 +17,13 @@ import {
 import { attachFileContents, buildFilesForInsert, type PluginFileMeta } from "./plugin-files.mapper.js";
 
 export interface PublishPluginService {
-  publish: (metadataRaw: unknown, fileBuffers: Map<string, Buffer>) => Promise<PluginVersionResult>;
+  publish: (metadataRaw: unknown, fileBuffers: Map<string, Buffer>, actor: User) => Promise<PluginVersionResult>;
   update: (
     slug: string,
     version: string,
     metadataRaw: unknown,
     fileBuffers: Map<string, Buffer>,
+    actor: User,
   ) => Promise<PluginVersionResult>;
 }
 
@@ -75,7 +77,7 @@ export function createPublishPluginService(orm: DataSource): PublishPluginServic
   }
 
   return {
-    async publish(metadataRaw, fileBuffers) {
+    async publish(metadataRaw, fileBuffers, actor) {
       const body = parseMetadata(metadataRaw, pluginPublishMetadataSchema);
       const filesWithContent = attachContents(body.files, fileBuffers);
 
@@ -93,12 +95,13 @@ export function createPublishPluginService(orm: DataSource): PublishPluginServic
         changelog: body.changelog ?? null,
         dependencySlugs: body.dependencies,
         files: buildFilesForInsert(body.files, written),
+        actor,
       });
 
       return toPluginVersionResult(plugin, version, body.dependencies);
     },
 
-    async update(slug, version, metadataRaw, fileBuffers) {
+    async update(slug, version, metadataRaw, fileBuffers, actor) {
       const body = parseMetadata(metadataRaw, pluginUpdateMetadataSchema);
 
       if ((body.slug !== undefined && body.slug !== slug) || (body.version !== undefined && body.version !== version)) {
@@ -122,6 +125,7 @@ export function createPublishPluginService(orm: DataSource): PublishPluginServic
         changelog: body.changelog ?? null,
         dependencySlugs: body.dependencies,
         files: buildFilesForInsert(body.files, written),
+        actor,
       });
 
       if (!updated) {

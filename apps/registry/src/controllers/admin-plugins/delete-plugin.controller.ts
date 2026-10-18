@@ -2,6 +2,7 @@ import type { pluginSlugParamsSchema } from "@closet/contract";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { DataSource } from "typeorm";
 import type { z } from "zod";
+import { recordAudit } from "../../auth/record-audit.js";
 import { NotFoundError } from "../../errors/http-error.js";
 import { softDeletePlugin } from "../../registry/plugins-repository.js";
 
@@ -21,6 +22,8 @@ export function createDeletePluginController(orm: DataSource) {
     if (!(await softDeletePlugin(orm, slug))) {
       throw new NotFoundError(`Plugin ${slug} not found`);
     }
+
+    await recordAudit(orm, request, { action: "plugin.delete", targetType: "plugin", targetId: slug });
 
     reply.code(204).send();
   };

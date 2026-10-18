@@ -13,6 +13,7 @@
  * Отличия от Postgres: нет транзакций (атомарность достигается проверкой до мутаций), сортировка slug —
  * по кодовым точкам, а не по collation БД.
  */
+import type { AuthorRef } from "@closet/contract";
 import semver from "semver";
 /* eslint-disable unicorn/consistent-class-member-order -- секции класса сгруппированы по смыслу (состояние, инспекция, операции репозиториев), а не по видимости */
 import type { DataSource } from "typeorm";
@@ -29,8 +30,6 @@ import type {
 } from "../../src/registry/plugins-repository.js";
 
 /** Та же ошибка, что в реальном репозитории; роуты проверяют её через instanceof из подменённого модуля. */
-/** Автор-заглушка: авторство в fake-db пока не моделируется (появится вместе с auth-слоем). */
-const STUB_USER = { id: "1", username: "stub" } as User;
 
 export class PluginVersionConflictError extends Error {
   constructor(
@@ -51,6 +50,8 @@ export interface PluginRecord {
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  createdBy: string;
+  updatedBy: string;
 }
 
 /** Строка таблицы `plugin_versions` (`pluginId` вместо связи). */
@@ -63,6 +64,8 @@ export interface VersionRecord {
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  createdBy: string;
+  updatedBy: string;
 }
 
 /** Строка таблицы `plugin_files`. */
@@ -95,6 +98,11 @@ export type FakeOperation =
   | "getDependencySlugs"
   | "softDeletePlugin"
   | "recordInstall";
+
+/** Автор в записях хранится именем; наружу отдаётся минимальная entity пользователя. */
+function userEntity(username: string): User {
+  return { username } as User;
+}
 
 /** Сравнение по кодовым точкам (как collation "C" в БД), а не по локали. */
 function compareCodePoints(a: string, b: string): number {
@@ -140,7 +148,14 @@ export class FakeDb {
   }
 
   private toPluginEntity(record: PluginRecord): Plugin {
-    return { ...record, createdBy: STUB_USER, updatedBy: STUB_USER, versions: [], dependencies: [], dependents: [] };
+    return {
+      ...record,
+      createdBy: userEntity(record.createdBy),
+      updatedBy: userEntity(record.updatedBy),
+      versions: [],
+      dependencies: [],
+      dependents: [],
+    };
   }
 
   private toFileEntity(record: FileRecord, version: PluginVersion): PluginFile {
@@ -159,8 +174,8 @@ export class FakeDb {
       deletedAt: record.deletedAt,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
-      createdBy: STUB_USER,
-      updatedBy: STUB_USER,
+      createdBy: userEntity(record.createdBy),
+      updatedBy: userEntity(record.updatedBy),
       files: [],
     };
     if (withFiles) {
@@ -308,9 +323,12 @@ export class FakeDb {
     if (plugin) {
       // Воскрешение soft-deleted плагина под тем же slug; старые удалённые версии остаются удалёнными
       plugin.description = input.description;
+      // Воскрешённый slug — по сути новый плагин: автором становится тот, кто его вернул
+      if (plugin.deleted) plugin.createdBy = input.actor.username;
       plugin.deleted = false;
       plugin.deletedAt = null;
       plugin.updatedAt = now;
+      plugin.updatedBy = input.actor.username;
     } else {
       plugin = {
         id: this.nextId(),
@@ -320,6 +338,8 @@ export class FakeDb {
         deletedAt: null,
         createdAt: now,
         updatedAt: now,
+        createdBy: input.actor.username,
+        updatedBy: input.actor.username,
       };
       this.plugins.push(plugin);
     }
@@ -335,6 +355,8 @@ export class FakeDb {
       deletedAt: null,
       createdAt: now,
       updatedAt: now,
+      createdBy: input.actor.username,
+      updatedBy: input.actor.username,
     };
     this.versions.push(version);
     this.replaceFiles(version.id, input.files);
@@ -356,9 +378,11 @@ export class FakeDb {
     const now = new Date();
     active.plugin.description = input.description;
     active.plugin.updatedAt = now;
+    active.plugin.updatedBy = input.actor.username;
     this.replaceDependencies(active.plugin.id, input.dependencySlugs);
     version.changelog = input.changelog;
     version.updatedAt = now;
+    version.updatedBy = input.actor.username;
     this.replaceFiles(version.id, input.files);
 
     return { plugin: this.toPluginEntity(active.plugin), version: this.toVersionEntity(version, active.plugin, true) };
@@ -409,6 +433,8 @@ export class FakeDb {
         slug: plugin.slug,
         description: plugin.description,
         latestVersion: latest.version,
+        createdBy: { username: plugin.createdBy },
+        updatedBy: { username: plugin.updatedBy },
         updatedAt: plugin.updatedAt,
       });
     }
@@ -427,6 +453,8 @@ export class FakeDb {
         createdAt: v.createdAt,
         updatedAt: v.updatedAt,
         fileCount: this.files.filter((f) => f.versionId === v.id).length,
+        createdBy: { username: v.createdBy },
+        updatedBy: { username: v.updatedBy },
       }))
       .toSorted((a, b) => semver.rcompare(a.version, b.version));
   };
@@ -474,6 +502,11 @@ export class FakeDb {
 /** Единственный экземпляр на воркер/тест-файл; его же используют подменённые модули. */
 export const fakeDb = new FakeDb();
 
+/** Чистая функция из реального репозитория. */
+export function toAuthorRef(user: User): AuthorRef {
+  return { username: user.username };
+}
+
 /** Чистая функция из реального репозитория (не зависит от БД) — воспроизведена, чтобы не тянуть TypeORM-entity. */
 export function toPluginVersionResult(
   plugin: Plugin,
@@ -485,8 +518,8 @@ export function toPluginVersionResult(
     description: plugin.description,
     version: version.version,
     changelog: version.changelog,
-    createdBy: { username: "unknown" },
-    updatedBy: { username: "unknown" },
+    createdBy: toAuthorRef(version.createdBy),
+    updatedBy: toAuthorRef(version.updatedBy),
     dependencies: dependencySlugs,
     files: version.files.map((file) => ({
       component: file.component,
@@ -509,6 +542,7 @@ export function createRepositoryModule(db: FakeDb = fakeDb) {
   return {
     PluginVersionConflictError,
     toPluginVersionResult,
+    toAuthorRef,
     findMissingDependencySlugs: db.findMissingDependencySlugs,
     findAnyVersion: db.findAnyVersion,
     publishPluginVersion: db.publishPluginVersion,

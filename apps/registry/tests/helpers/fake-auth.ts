@@ -1,4 +1,5 @@
 import type { UserRole } from "@closet/contract";
+import type { AuditEntryInput } from "../../src/auth/repository/audit.js";
 import { generateApiToken, generateSessionToken } from "../../src/auth/tokens.js";
 import type { ApiToken } from "../../src/db/entities/api-token.entity.js";
 import type { Session } from "../../src/db/entities/session.entity.js";
@@ -21,6 +22,8 @@ export class FakeAuth {
   private sessions = new Map<string, Session>();
   private apiTokens = new Map<string, ApiToken>();
   private idCounter = 0;
+  private lastUser: User | null = null;
+  private auditEntries: AuditEntryInput[] = [];
 
   private nextId(): string {
     this.idCounter += 1;
@@ -50,11 +53,14 @@ export class FakeAuth {
   reset(): void {
     this.sessions.clear();
     this.apiTokens.clear();
+    this.auditEntries = [];
+    this.lastUser = null;
     this.idCounter = 0;
   }
 
   seedApiUser(role: UserRole, options: SeedUserOptions = {}): SeededCredential {
     const user = this.createUser(role, options);
+    this.lastUser = user;
     const generated = generateApiToken();
     this.apiTokens.set(generated.hash, {
       id: this.nextId(),
@@ -72,6 +78,7 @@ export class FakeAuth {
 
   seedSessionUser(role: UserRole, options: SeedUserOptions & { expiresAt?: Date } = {}): SeededCredential {
     const user = this.createUser(role, options);
+    this.lastUser = user;
     const generated = generateSessionToken();
     this.sessions.set(generated.hash, {
       id: this.nextId(),
@@ -92,6 +99,23 @@ export class FakeAuth {
     for (const token of this.apiTokens.values()) {
       token.revokedAt = new Date();
     }
+  }
+
+  /** Пользователь, созданный последним вызовом `seedApiUser` / `seedSessionUser`. */
+  lastSeededUser(): User {
+    if (!this.lastUser) {
+      throw new Error("No user seeded");
+    }
+
+    return this.lastUser;
+  }
+
+  recordAuditEntry(entry: AuditEntryInput): void {
+    this.auditEntries.push(entry);
+  }
+
+  getAuditEntries(): AuditEntryInput[] {
+    return this.auditEntries.map((entry) => ({ ...entry }));
   }
 
   findSession(tokenHash: string): Session | null {
