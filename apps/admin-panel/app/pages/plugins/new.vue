@@ -2,6 +2,8 @@
 import type { PluginListResponse } from "@closet/contract";
 import { buildFormData, type PluginFormValues } from "~/utils/plugin-files";
 
+definePageMeta({ permission: { resource: "plugins", action: "write" } });
+
 const router = useRouter();
 
 const { data: list } = await useFetch<PluginListResponse>("/api/plugins");

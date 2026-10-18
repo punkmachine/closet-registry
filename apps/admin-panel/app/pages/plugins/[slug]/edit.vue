@@ -2,6 +2,8 @@
 import type { PluginBundle, PluginListResponse } from "@closet/contract";
 import { buildFormData, type PluginFormValues } from "~/utils/plugin-files";
 
+definePageMeta({ permission: { resource: "plugins", action: "write" } });
+
 const route = useRoute();
 const router = useRouter();
 

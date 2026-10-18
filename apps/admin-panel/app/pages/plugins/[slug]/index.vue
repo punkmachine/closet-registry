@@ -2,6 +2,7 @@
 import type { PluginBundle, PluginVersionListResponse } from "@closet/contract";
 import { ConfirmDialog, FileBrowser, formatDate } from "@closet/ui";
 
+const { can } = useAuth();
 const route = useRoute();
 const router = useRouter();
 const slug = computed(() => String(route.params.slug));
@@ -132,13 +133,20 @@ async function confirmDelete(): Promise<void> {
 
       <div class="row">
         <NuxtLink
-          v-if="selectedVersion"
+          v-if="selectedVersion && can('plugins', 'write')"
           class="btn"
           :to="`/plugins/${encodeURIComponent(slug)}/edit?version=${encodeURIComponent(selectedVersion)}`"
         >
           редактировать
         </NuxtLink>
-        <button type="button" class="btn btn--danger" @click="deleteTarget = { kind: 'plugin' }">удалить плагин</button>
+        <button
+          v-if="can('plugins', 'delete')"
+          type="button"
+          class="btn btn--danger"
+          @click="deleteTarget = { kind: 'plugin' }"
+        >
+          удалить плагин
+        </button>
       </div>
     </div>
 
@@ -173,9 +181,11 @@ async function confirmDelete(): Promise<void> {
               </span>
               <span class="tiny nowrap">{{ item.fileCount }} файл(ов)</span>
               <span class="tiny nowrap dim">{{ formatDate(item.createdAt) }}</span>
+              <span class="tiny dim nowrap">{{ item.updatedBy.username }}</span>
               <span class="tiny dim version-row__log">{{ item.changelog || "без changelog" }}</span>
             </button>
             <button
+              v-if="can('plugins', 'delete')"
               type="button"
               class="btn btn--sm btn--ghost"
               @click="deleteTarget = { kind: 'version', version: item.version }"
@@ -191,6 +201,14 @@ async function confirmDelete(): Promise<void> {
           <dl class="meta-list">
             <dt>версия</dt>
             <dd class="mono">{{ bundle.version }}</dd>
+
+            <dt>автор</dt>
+            <dd>
+              {{ bundle.createdBy.username }}
+              <span v-if="bundle.updatedBy.username !== bundle.createdBy.username" class="dim">
+                · изменил {{ bundle.updatedBy.username }}
+              </span>
+            </dd>
 
             <dt>зависимости</dt>
             <dd>

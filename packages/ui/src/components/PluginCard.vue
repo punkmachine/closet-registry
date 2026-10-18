@@ -33,6 +33,8 @@ const linkProps = computed(() => (typeof props.as === "string" ? { href: props.t
 
     <footer class="card__foot">
       <span>обновлён {{ formatDate(props.plugin.updatedAt) }}</span>
+      <span class="spacer" />
+      <span :title="`создал ${props.plugin.createdBy.username}`">{{ props.plugin.updatedBy.username }}</span>
     </footer>
   </component>
 </template>

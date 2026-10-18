@@ -3,6 +3,7 @@ import type { PluginListResponse } from "@closet/contract";
 import { PluginCard } from "@closet/ui";
 
 const NuxtLink = resolveComponent("NuxtLink");
+const { can } = useAuth();
 
 const { data, pending, error, refresh } = await useFetch<PluginListResponse>("/api/plugins");
 
@@ -30,7 +31,7 @@ const filtered = computed(() => {
         <h1>Плагины</h1>
         <p class="page-head__sub">
           Содержимое self-hosted реестра, из которого <code>closet-cli</code> ставит файлы в проекты.
-          Кнопка публикации — в шапке.
+          <template v-if="can('plugins', 'write')">Кнопка публикации — в шапке.</template>
         </p>
       </div>
     </div>
@@ -71,8 +72,10 @@ const filtered = computed(() => {
 
     <div v-else-if="plugins.length === 0" class="state">
       <span class="state__title">В реестре пока нет плагинов</span>
-      <span class="tiny">Опубликуйте первый — или сделайте это через <code>POST /v1/admin/plugins</code></span>
-      <NuxtLink to="/plugins/new" class="btn btn--primary mt-2">+ новый плагин</NuxtLink>
+      <template v-if="can('plugins', 'write')">
+        <span class="tiny">Опубликуйте первый — или сделайте это через <code>POST /v1/admin/plugins</code></span>
+        <NuxtLink to="/plugins/new" class="btn btn--primary mt-2">+ новый плагин</NuxtLink>
+      </template>
     </div>
 
     <div v-else-if="filtered.length === 0" class="state">
