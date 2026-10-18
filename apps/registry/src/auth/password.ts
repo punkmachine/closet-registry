@@ -1,4 +1,5 @@
-import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { randomBytes, type ScryptOptions, scrypt, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
 
 const SCRYPT_PARAMS = { N: 16_384, r: 8, p: 1 } as const;
 const KEY_LENGTH = 64;
@@ -13,18 +14,10 @@ interface ParsedHash {
   hash: Buffer;
 }
 
+const scryptAsync = promisify<string, Buffer, number, ScryptOptions, Buffer>(scrypt);
+
 async function deriveKey(password: string, salt: Buffer, N: number, r: number, p: number): Promise<Buffer> {
-  return await new Promise((resolve, reject) => {
-    scrypt(password, salt, KEY_LENGTH, { N, r, p, maxmem: 256 * N * r }, (error, derived) => {
-      if (error) {
-        reject(error);
-
-        return;
-      }
-
-      resolve(derived);
-    });
-  });
+  return await scryptAsync(password, salt, KEY_LENGTH, { N, r, p, maxmem: 256 * N * r });
 }
 
 function parseHash(stored: string): ParsedHash | null {

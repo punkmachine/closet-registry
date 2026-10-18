@@ -25,9 +25,11 @@ export const stubPostgresPlugin = fp(async (fastify) => {
 /**
  * Декорирует `fastify.orm` пустым объектом: роуты лишь передают его первым аргументом в функции репозитория,
  * а те (fake) его игнорируют. Любое реальное обращение к нему — ошибка теста, поэтому он бросает через Proxy.
+ * Единственное исключение — `transaction`: сервисы оборачивают в неё несколько вызовов репозиториев, поэтому
+ * она просто вызывает колбэк с тем же объектом в роли `EntityManager` (без отката).
  */
 export const stubTypeormPlugin = fp(async (fastify) => {
-  const orm = new Proxy(
+  const orm: DataSource = new Proxy(
     {},
     {
       get(_target, property) {
@@ -35,7 +37,10 @@ export const stubTypeormPlugin = fp(async (fastify) => {
         if (typeof property === "symbol" || property === "getter" || property === "setter") {
           return Reflect.get(_target, property) as unknown;
         }
-        throw new Error(`fastify.orm.${property} недоступен в API-тестах: используйте fakeDb`);
+        if (property === "transaction") {
+          return async (run: (manager: unknown) => Promise<unknown>) => await run(orm);
+        }
+        throw new Error(`fastify.orm.${property} недоступен в API-тестах: используйте fakeDb / fakeAuth`);
       },
     },
   ) as DataSource;

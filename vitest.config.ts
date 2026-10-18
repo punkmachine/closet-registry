@@ -84,7 +84,9 @@ export default defineConfig({
       reportsDirectory: "./coverage",
       thresholds: {
         "apps/registry/src/registry/file-store.ts": { statements: 100, branches: 100 },
-        "apps/registry/src/plugins/admin-auth.ts": { statements: 100, branches: 100 },
+        "apps/registry/src/plugins/auth.ts": { statements: 100, branches: 100 },
+        "apps/registry/src/auth/guards.ts": { statements: 100, branches: 100 },
+        "apps/registry/src/auth/password.ts": { statements: 100, branches: 100 },
       },
     },
   },

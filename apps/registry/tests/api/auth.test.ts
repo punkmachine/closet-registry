@@ -3,10 +3,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildTestApp } from "../helpers/build-test-app.js";
 
 type TestContext = Awaited<ReturnType<typeof buildTestApp>>;
-type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
+type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 /**
- * Полный список /v1/* роутов (src/routes/stats.ts, plugins.ts, admin-plugins.ts) и минимальная роль для каждого.
+ * Полный список /v1/* роутов (src/routes/stats.ts, plugins.ts, admin-plugins.ts, auth.ts, admin-users.ts) и
+ * минимальная роль для каждого. Единственное исключение — публичный `POST /v1/auth/login` (см. login.test.ts).
  * При добавлении нового роута его нужно дописать сюда: именно этот список страхует инвариант
  * «токен обязателен на всех /v1/*» (однажды он уже ломался из-за отсутствия fp()).
  * Auth-хук и guard срабатывают в onRequest, до валидации, поэтому тела запросов не нужны:
@@ -21,6 +22,18 @@ const V1_ROUTES: readonly (readonly [HttpMethod, string, UserRole])[] = [
   ["PUT", "/v1/admin/plugins/some-slug/1.0.0", "developer"],
   ["DELETE", "/v1/admin/plugins/some-slug/1.0.0", "admin"],
   ["DELETE", "/v1/admin/plugins/some-slug", "admin"],
+  ["GET", "/v1/auth/me", "guest"],
+  ["POST", "/v1/auth/logout", "guest"],
+  ["POST", "/v1/auth/change-password", "guest"],
+  ["GET", "/v1/auth/token", "guest"],
+  ["POST", "/v1/auth/token", "guest"],
+  ["DELETE", "/v1/auth/token", "guest"],
+  ["GET", "/v1/admin/users", "admin"],
+  ["POST", "/v1/admin/users", "admin"],
+  ["PATCH", "/v1/admin/users/999", "admin"],
+  ["POST", "/v1/admin/users/999/reset-password", "admin"],
+  ["DELETE", "/v1/admin/users/999", "admin"],
+  ["GET", "/v1/admin/audit", "admin"],
 ];
 
 const ROLE_RANK: Record<UserRole, number> = { guest: 0, developer: 1, admin: 2 };

@@ -10,35 +10,27 @@ vi.mock("../../src/db/stats-repository.js", async () => {
   return createStatsRepositoryModule();
 });
 
+// Константы и классы ошибок берём из оригинала, функции доступа к данным подменяем на fakeAuth.
+vi.mock("../../src/auth/repository/users.js", async (importOriginal) => {
+  const { createUsersRepositoryModule } = await import("../helpers/fake-auth.js");
+  const original = await importOriginal<Parameters<typeof createUsersRepositoryModule>[0]>();
+  return { ...original, ...createUsersRepositoryModule(original) };
+});
+
 vi.mock("../../src/auth/repository/sessions.js", async (importOriginal) => {
-  const { fakeAuth } = await import("../helpers/fake-auth.js");
-  return {
-    ...(await importOriginal<Record<string, unknown>>()),
-    findSessionByTokenHash: (_dataSource: unknown, tokenHash: string) =>
-      Promise.resolve(fakeAuth.findSession(tokenHash)),
-    touchSession: () => Promise.resolve(false),
-  };
+  const { createSessionsRepositoryModule } = await import("../helpers/fake-auth.js");
+  const original = await importOriginal<Parameters<typeof createSessionsRepositoryModule>[0]>();
+  return { ...original, ...createSessionsRepositoryModule(original) };
 });
 
 vi.mock("../../src/auth/repository/api-tokens.js", async (importOriginal) => {
-  const { fakeAuth } = await import("../helpers/fake-auth.js");
-  return {
-    ...(await importOriginal<Record<string, unknown>>()),
-    findActiveApiTokenByHash: (_dataSource: unknown, tokenHash: string) =>
-      Promise.resolve(fakeAuth.findActiveApiToken(tokenHash)),
-    touchApiToken: () => Promise.resolve(false),
-  };
+  const { createApiTokensRepositoryModule } = await import("../helpers/fake-auth.js");
+  return { ...(await importOriginal<Record<string, unknown>>()), ...createApiTokensRepositoryModule() };
 });
 
 vi.mock("../../src/auth/repository/audit.js", async (importOriginal) => {
-  const { fakeAuth } = await import("../helpers/fake-auth.js");
-  return {
-    ...(await importOriginal<Record<string, unknown>>()),
-    writeAuditEntry: (_dataSource: unknown, entry: Parameters<typeof fakeAuth.recordAuditEntry>[0]) => {
-      fakeAuth.recordAuditEntry(entry);
-      return Promise.resolve();
-    },
-  };
+  const { createAuditRepositoryModule } = await import("../helpers/fake-auth.js");
+  return { ...(await importOriginal<Record<string, unknown>>()), ...createAuditRepositoryModule() };
 });
 
 vi.mock("../../src/plugins/postgres.js", async () => {
