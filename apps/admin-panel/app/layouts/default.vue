@@ -5,16 +5,21 @@
  */
 const { data: health } = useFetch("/api/health", { lazy: true, server: false });
 
+const { user, can, logout } = useAuth();
+
 const registryState = computed(() => {
   if (!health.value) {
     return { cls: "", label: "проверяем реестр…" };
   }
+
   if (health.value.registry !== "ok") {
     return { cls: "dot--err", label: "реестр недоступен" };
   }
+
   if (health.value.registryDb !== "ok") {
     return { cls: "dot--warn", label: "реестр без БД" };
   }
+
   return { cls: "dot--ok", label: "реестр на связи" };
 });
 </script>
@@ -35,7 +40,18 @@ const registryState = computed(() => {
           {{ registryState.label }}
         </span>
 
-        <NuxtLink to="/plugins/new" class="btn btn--primary btn--sm"> + новый плагин </NuxtLink>
+        <NuxtLink v-if="can('plugins', 'write')" to="/plugins/new" class="btn btn--primary btn--sm">
+          + новый плагин
+        </NuxtLink>
+
+        <template v-if="user">
+          <NuxtLink v-if="can('users', 'read')" to="/admin/users" class="nav-link">пользователи</NuxtLink>
+          <NuxtLink v-if="can('users', 'read')" to="/admin/audit" class="nav-link">аудит</NuxtLink>
+          <NuxtLink to="/account" class="nav-link" :title="`роль: ${user.role}`">
+            {{ user.username }} <span class="badge">{{ user.role }}</span>
+          </NuxtLink>
+          <button type="button" class="btn btn--sm" @click="logout">выйти</button>
+        </template>
       </div>
     </header>
 
@@ -111,6 +127,20 @@ const registryState = computed(() => {
 .brand__muted {
   color: var(--text-tertiary);
   font-weight: 400;
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.nav-link:hover,
+.nav-link.router-link-active {
+  color: #e6edf3;
 }
 
 .topbar__spacer {
