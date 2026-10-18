@@ -1,55 +1,70 @@
 import type { H3Event } from "h3";
 
 /**
- * Единственное место, где админка знает ADMIN_TOKEN. Браузер ходит только в /api/** этого
- * же origin, а Bearer-токен подставляется здесь, на сервере — иначе токен от всего реестра
- * (он защищает и чтение, и запись) утёк бы в браузерный бандл.
+ * Единственное место, где админка знает токен сессии. Браузер ходит только в /api/** этого же origin,
+ * а Bearer подставляется здесь, на сервере, из httpOnly-cookie — в JS страницы токен недоступен.
  */
-function resolveRegistryTarget(event: H3Event): { baseUrl: string; token: string } {
+function resolveRegistryBaseUrl(event: H3Event): string {
   const config = useRuntimeConfig(event);
 
-  /**
-   * NUXT_REGISTRY_URL / NUXT_REGISTRY_TOKEN — штатный путь Nuxt, REGISTRY_URL / ADMIN_TOKEN —
-   * те же имена, что уже есть в общем .env монорепо, чтобы не дублировать секрет под двумя ключами.
-   */
-  const baseUrl = (config.registryUrl || process.env.REGISTRY_URL || "http://127.0.0.1:3000").replace(/\/+$/, "");
-  const token = config.registryToken || process.env.ADMIN_TOKEN || "";
-
-  if (!token) {
-    throw createError({
-      statusCode: 500,
-      message: "ADMIN_TOKEN (или NUXT_REGISTRY_TOKEN) не задан — админка не может авторизоваться в реестре",
-    });
-  }
-
-  return { baseUrl, token };
-}
-
-/**
- *
- */
-export function registryBaseUrl(event: H3Event): string {
-  return resolveRegistryTarget(event).baseUrl;
+  return (config.registryUrl || process.env.REGISTRY_URL || "http://127.0.0.1:3000").replace(/\/+$/, "");
 }
 
 interface RegistryFetchOptions {
-  method?: "GET" | "POST" | "PUT" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: BodyInit;
   contentType?: string | undefined;
+  anonymous?: boolean;
+  forwardClient?: boolean;
+}
+
+interface RegistryResult<T> {
+  data: T;
+  status: number;
 }
 
 /**
  * Прокидывает запрос в /v1/** реестра и переводит его ошибки в H3-ошибки с сохранением
- * статуса и текста из тела `{ error }` — иначе на фронте вместо «Plugin foo@1.0.0 not found»
- * был бы безликий 500.
+ * статуса, текста из `{ error }`, машинного `code` и `Retry-After` — иначе на фронте вместо
+ * «Account is temporarily locked» был бы безликий 500. `401` на авторизованном запросе
+ * означает, что сессия умерла: cookie чистится, фронт уйдёт на /login.
  */
-export async function registryFetch<T>(event: H3Event, path: string, options: RegistryFetchOptions = {}): Promise<T> {
-  const { baseUrl, token } = resolveRegistryTarget(event);
+export async function registryFetchRaw<T>(
+  event: H3Event,
+  path: string,
+  options: RegistryFetchOptions = {},
+): Promise<RegistryResult<T>> {
+  const baseUrl = resolveRegistryBaseUrl(event);
   const url = `${baseUrl}/v1${path}`;
 
-  const headers: Record<string, string> = { authorization: `Bearer ${token}` };
+  const headers: Record<string, string> = {};
+
+  if (!options.anonymous) {
+    const token = readSessionToken(event);
+
+    if (!token) {
+      throw createError({ statusCode: 401, message: "Требуется вход" });
+    }
+
+    headers.authorization = `Bearer ${token}`;
+  }
+
   if (options.contentType) {
     headers["content-type"] = options.contentType;
+  }
+
+  if (options.forwardClient) {
+    const ip = getRequestIP(event, { xForwardedFor: true });
+
+    if (ip) {
+      headers["x-forwarded-for"] = ip;
+    }
+
+    const userAgent = getRequestHeader(event, "user-agent");
+
+    if (userAgent) {
+      headers["user-agent"] = userAgent;
+    }
   }
 
   let response: Response;
@@ -67,35 +82,73 @@ export async function registryFetch<T>(event: H3Event, path: string, options: Re
   }
 
   if (!response.ok) {
-    throw createError({ statusCode: response.status, message: await extractErrorMessage(response) });
+    if (response.status === 401 && !options.anonymous) {
+      clearSessionCookie(event);
+    }
+
+    const retryAfter = response.headers.get("retry-after");
+
+    if (retryAfter && Number.isFinite(Number(retryAfter))) {
+      setResponseHeader(event, "retry-after", Number(retryAfter));
+    }
+
+    const { message, code } = await extractError(response);
+
+    throw createError({ statusCode: response.status, message, data: code ? { code } : undefined });
   }
 
-  return response.status === 204 || response.headers.get("content-length") === "0"
-    ? (undefined as T)
-    : ((await response.json()) as T);
+  if (!options.anonymous) {
+    setSessionCookie(event, readSessionToken(event) ?? "");
+  }
+
+  const empty = response.status === 204 || response.headers.get("content-length") === "0";
+
+  return { data: empty ? (undefined as T) : ((await response.json()) as T), status: response.status };
 }
 
-async function extractErrorMessage(response: Response): Promise<string> {
+/**
+ *
+ */
+export async function registryFetch<T>(event: H3Event, path: string, options: RegistryFetchOptions = {}): Promise<T> {
+  const { data } = await registryFetchRaw<T>(event, path, options);
+
+  return data;
+}
+
+/** Тело запроса как `unknown`: валидацию делает реестр по zod-схемам контракта, BFF только проксирует. */
+export async function readJsonBody(event: H3Event): Promise<unknown> {
+  return await readBody<unknown>(event);
+}
+
+/** JSON-тело для мутаций: единая точка, чтобы роуты не повторяли `JSON.stringify` + content-type. */
+export function jsonBody(value: unknown): Pick<RegistryFetchOptions, "body" | "contentType"> {
+  return { body: JSON.stringify(value), contentType: "application/json" };
+}
+
+async function extractError(response: Response): Promise<{ message: string; code?: string }> {
   let text = "";
+
   try {
     text = await response.text();
   } catch {
     // тело ответа нечитаемо — отдаём сообщение по статусу
   }
+
   if (!text) {
-    return `Реестр ответил ${response.status}`;
+    return { message: `Реестр ответил ${response.status}` };
   }
 
   try {
-    const parsed = JSON.parse(text) as { error?: unknown };
+    const parsed = JSON.parse(text) as { error?: unknown; code?: unknown };
+
     if (typeof parsed.error === "string" && parsed.error.length > 0) {
-      return parsed.error;
+      return typeof parsed.code === "string" ? { message: parsed.error, code: parsed.code } : { message: parsed.error };
     }
   } catch {
     /** не JSON — отдаём как есть, обрезав, чтобы HTML-страница ошибки не улетела целиком в UI */
   }
 
-  return text.slice(0, 500);
+  return { message: text.slice(0, 500) };
 }
 
 /**
@@ -105,11 +158,13 @@ async function extractErrorMessage(response: Response): Promise<string> {
  */
 export async function proxyMultipart<T>(event: H3Event, path: string, method: "POST" | "PUT"): Promise<T> {
   const contentType = getRequestHeader(event, "content-type");
+
   if (!contentType?.includes("multipart/form-data")) {
     throw createError({ statusCode: 400, message: "Ожидается multipart/form-data" });
   }
 
   const body = await readRawBody(event, false);
+
   if (!body) {
     throw createError({ statusCode: 400, message: "Пустое тело запроса" });
   }
