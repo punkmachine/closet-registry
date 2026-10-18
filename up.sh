@@ -38,7 +38,10 @@ fill_empty() {
   fi
 }
 
-fill_empty ADMIN_TOKEN "$(openssl rand -hex 32)"
+fill_empty ADMIN_USERNAME admin
+# Пароль обязан проходить passwordSchema (>= 9 символов и спецсимвол). base64 спецсимвол не гарантирует
+# (+ и / вычищаем как неудобные), поэтому дефис дописываем явно.
+fill_empty ADMIN_PASSWORD "$(openssl rand -base64 24 | tr -d '\n=+/')-"
 fill_empty POSTGRES_PASSWORD "$(openssl rand -base64 18 | tr -d '\n=')"
 
 if [ "$tls" = 1 ]; then
@@ -54,8 +57,6 @@ if [ "$tls" = 1 ]; then
     echo "В .env укажи ACME_EMAIL — почта для сертификата Let's Encrypt." >&2
     exit 1
   fi
-  fill_empty ADMIN_BASIC_USER admin
-  fill_empty ADMIN_BASIC_PASSWORD "$(openssl rand -base64 18 | tr -d '\n=')"
 fi
 
 if [ "$tls" = 1 ]; then
@@ -64,20 +65,20 @@ else
   docker compose up -d --build
 fi
 
-token=$(grep "^ADMIN_TOKEN=" .env | tail -1 | cut -d= -f2-)
+admin_user=$(grep "^ADMIN_USERNAME=" .env | tail -1 | cut -d= -f2-)
 
 echo
 echo "Готово."
 if [ "$tls" = 1 ]; then
   domain=$(grep "^DOMAIN=" .env | tail -1 | cut -d= -f2-)
-  user=$(grep "^ADMIN_BASIC_USER=" .env | tail -1 | cut -d= -f2-)
-  pass=$(grep "^ADMIN_BASIC_PASSWORD=" .env | tail -1 | cut -d= -f2-)
-  echo "  Админка:  https://${domain}/   (логин ${user} / пароль из .env: ADMIN_BASIC_PASSWORD)"
+  echo "  Админка:  https://${domain}/"
   echo "  API:      https://${domain}/v1"
-  echo "  closet-cli.json:  url=https://${domain}  token=${token}"
+  echo "  closet-cli.json:  url=https://${domain}"
 else
   echo "  Админка:  http://127.0.0.1:3001"
   echo "  API:      http://127.0.0.1:3000/v1"
-  echo "  closet-cli.json:  url=http://127.0.0.1:3000  token=${token}"
+  echo "  closet-cli.json:  url=http://127.0.0.1:3000"
 fi
+echo "  Вход в админку: логин ${admin_user}, пароль — ADMIN_PASSWORD в .env (после первого входа смени его в Аккаунте)."
+echo "  Токен для closet-cli: Админка → Аккаунт → Токен (показывается один раз)."
 echo "  Секреты лежат в .env — файл не коммить."

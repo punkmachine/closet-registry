@@ -51,7 +51,7 @@ pnpm test                 # vitest run (тестового набора пока
 ```
 
 `.env` (не коммитится, шаблон — `.env.example`) обязателен для `dev`/`start`/
-`migration:run`/`migration:revert`: `DATABASE_URL`, `ADMIN_TOKEN`, `PORT`.
+`migration:run`/`migration:revert`: `DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `PORT` (опционально `TRUST_PROXY=true` за прокси).
 
 Миграции — не через `typeorm` CLI, а через собственные скрипты
 (`src/db/run-migrations.ts`/`revert-migration.ts`), которые сами инициализируют
@@ -110,8 +110,8 @@ pnpm test                 # vitest run (тестового набора пока
   `PathTraversalError` → роуты ловят её и отвечают `400`, не `500`).
 - `src/plugins/` — `fastify-plugin`-обёрнутые (`fp()`) плагины: `postgres.ts`
   (декорирует `fastify.pg: Pool`, сырой `pg`), `typeorm.ts` (декорирует
-  `fastify.orm: DataSource`, инициализирует `AppDataSource`), `admin-auth.ts`
-  (Bearer-токен, `timingSafeEqual`), `multipart.ts` (`@fastify/multipart`,
+  `fastify.orm: DataSource`, инициализирует `AppDataSource`), `auth.ts`
+  (Bearer: сессия/API-токен по sha256-хешу, роль и блокировки), `multipart.ts` (`@fastify/multipart`,
   10MB/файл, до 200 файлов), `rate-limit.ts` (`@fastify/rate-limit` с
   `global: false`).
 - `src/routes/` — `health.ts` (без префикса, без авторизации), `plugins.ts` +
@@ -126,21 +126,21 @@ pnpm test                 # vitest run (тестового набора пока
 остальная работа с БД — через `fastify.orm`. Не удалять и не сливать одно в
 другое не разобравшись.
 
-### Важно: почему `admin-auth.ts` обёрнут в `fp()`
+### Важно: почему `plugins/auth.ts` обёрнут в `fp()`
 
 В `app.ts` внутри одного `{prefix: "/v1"}` колбэка последовательно вызываются
-`v1Scope.register(adminAuthPlugin)`, затем `v1Scope.register(statsRoutes)`,
+`v1Scope.register(authPlugin)`, затем `v1Scope.register(statsRoutes)`,
 `v1Scope.register(pluginsRoutes)` и вложенный `v1Scope.register(..., {prefix:
 "/admin"})`. Без `fp()` каждый `.register()` создаёт свой изолированный
 дочерний encapsulation-контекст — хук `onRequest`, добавленный внутри
-`admin-auth`, в этом случае НЕ долетел бы до соседних роутов, зарегистрированных
+`auth`, в этом случае НЕ долетел бы до соседних роутов, зарегистрированных
 на том же `v1Scope` (это реальный баг из первой реализации: часть `/v1/*`
 принимала запросы вообще без токена). `fp()` поднимает эффект плагина ровно на
 один уровень вверх — до `v1Scope`, откуда его наследуют все дочерние
 `register()`-вызовы. Модель авторизации именно такая: **токен обязателен на
 всех `/v1/*`, включая чтение**, не только на `/v1/admin` — `GET /health`
 единственный публичный эндпоинт. Если будешь трогать регистрацию роутов — не
-убирай `fp()` и не меняй порядок регистрации `adminAuthPlugin`.
+убирай `fp()` и не меняй порядок регистрации `authPlugin`.
 
 ### `PUT /v1/admin/plugins/:slug/:version` — это full replace, не patch
 
@@ -186,10 +186,18 @@ soft-deleted версию отвечает `404 Plugin <slug>@<version> not foun
 
 ## Безопасность / известные компромиссы
 
-- `ADMIN_TOKEN` в `.env` — одно значение на весь инстанс, защищает **все**
-  `/v1/*` (не только write). Сравнение — `timingSafeEqual`, но при утечке
-  токена единственный способ отозвать доступ — сгенерировать новый и
-  перезапустить сервер.
+- Авторизация — пользователи с ролями `admin`/`developer`/`guest` (`ROLE_PERMISSIONS` в
+  контракте). Bearer на **всех** `/v1/*`, кроме `POST /v1/auth/login`: сессия админки
+  (`cls_…`, 7 дней скользящих) или персональный API-токен (`clt_…`, один активный на
+  юзера). В БД только sha256-хеши. Роль берётся из пользователя на каждом запросе, поэтому
+  блокировка и смена роли действуют сразу. Префикс `/v1/admin` не означает «только admin»:
+  write плагинов доступен developer, users/audit — только admin.
+- `ADMIN_USERNAME`/`ADMIN_PASSWORD` нужны лишь для bootstrap первого admin
+  (`auth/bootstrap-admin.ts`, из `server.ts`); существующего admin не перезаписывают.
+  `up.sh` генерирует пароль со спецсимволом, чтобы он проходил `passwordSchema`.
+- `TRUST_PROXY=true` (compose выставляет у `api`) включает `trustProxy` Fastify: без него за
+  Caddy/BFF rate limit логина и аудит видят один IP. Включать только если API недоступен
+  напрямую из интернета. Caddy больше не делает Basic Auth — вход через `/login` админки.
 - CORS открыт (`origin: true`).
 - Rate limit глобально выключен (`global: false`) и включается точечно через
   `config.rateLimit` на роуте: `POST /v1/stats/installs` — 20/10 минут,

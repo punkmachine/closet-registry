@@ -28,6 +28,9 @@ import statsRoutes from "./routes/stats.js";
  */
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
+    // За Caddy и Nitro-прокси админки реальный IP клиента — в X-Forwarded-For; он нужен rate limit логина и аудиту.
+    // Включается только явно: при прямом доступе к API из интернета заголовок подделывается.
+    trustProxy: process.env.TRUST_PROXY === "true",
     logger: process.env.NODE_ENV === "production" ? true : { transport: { target: "pino-pretty" } },
   });
 
