@@ -1,8 +1,14 @@
 import type { MigrationInterface, QueryRunner } from "typeorm";
 
+/**
+ *
+ */
 export class CreatePluginRegistrySchema1788678999355 implements MigrationInterface {
   name = "CreatePluginRegistrySchema1788678999355";
 
+  /**
+   * Создаёт таблицы реестра плагинов.
+   */
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE "plugins" (
@@ -77,6 +83,9 @@ export class CreatePluginRegistrySchema1788678999355 implements MigrationInterfa
     );
   }
 
+  /**
+   * Удаляет таблицы реестра плагинов.
+   */
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP TABLE IF EXISTS "install_events";`);
     await queryRunner.query(`DROP TABLE IF EXISTS "plugin_dependencies";`);

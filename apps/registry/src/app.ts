@@ -24,7 +24,7 @@ import pluginsRoutes from "./routes/plugins.js";
 import statsRoutes from "./routes/stats.js";
 
 /**
- *
+ * Собирает Fastify-приложение: валидаторы, обработчик ошибок, плагины и роуты.
  */
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({

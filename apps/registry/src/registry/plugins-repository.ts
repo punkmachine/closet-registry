@@ -13,7 +13,7 @@ import type { User } from "../db/entities/user.entity.js";
  */
 export class PluginVersionConflictError extends Error {
   /**
-   *
+   * Создаёт ошибку о том, что версия плагина уже существует.
    */
   constructor(
     public readonly slug: string,
@@ -59,7 +59,7 @@ export interface PluginVersionResult {
 }
 
 /**
- *
+ * Возвращает slug'и зависимостей, для которых нет активного плагина.
  */
 export async function findMissingDependencySlugs(dataSource: DataSource, slugs: string[]): Promise<string[]> {
   if (slugs.length === 0) {
@@ -76,7 +76,7 @@ export async function findMissingDependencySlugs(dataSource: DataSource, slugs: 
 }
 
 /**
- *
+ * Ищет версию плагина по slug и номеру независимо от soft delete.
  */
 export async function findAnyVersion(
   dataSource: DataSource,
@@ -167,7 +167,7 @@ export function toAuthorRef(user: User): AuthorRef {
 }
 
 /**
- *
+ * Собирает результат версии плагина из сущностей и списка slug'ов зависимостей.
  */
 export function toPluginVersionResult(
   plugin: Plugin,
@@ -281,7 +281,7 @@ export async function updatePluginVersion(
 }
 
 /**
- *
+ * Помечает версию плагина удалённой; возвращает её или null, если версии нет.
  */
 export async function softDeleteVersion(
   dataSource: DataSource,
@@ -307,7 +307,7 @@ export async function softDeleteVersion(
 }
 
 /**
- *
+ * Ищет активную (не удалённую) версию плагина по slug и номеру.
  */
 export async function findActiveVersionBySlugAndVersion(
   dataSource: DataSource,
@@ -427,7 +427,7 @@ export async function findActiveVersionsBySlug(
 }
 
 /**
- *
+ * Возвращает slug'и плагинов, от которых зависит плагин.
  */
 export async function getDependencySlugs(dataSource: DataSource, pluginId: string): Promise<string[]> {
   const dependencies = await dataSource.getRepository(PluginDependency).find({
@@ -439,7 +439,7 @@ export async function getDependencySlugs(dataSource: DataSource, pluginId: strin
 }
 
 /**
- *
+ * Помечает плагин и его версии удалёнными; возвращает плагин или null, если его нет.
  */
 export async function softDeletePlugin(dataSource: DataSource, slug: string): Promise<Plugin | null> {
   return await dataSource.transaction(async (manager) => {

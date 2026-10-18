@@ -2,6 +2,9 @@ import { errorResponseSchema, statsInstallBodySchema, statsInstallResponseSchema
 import type { FastifyPluginAsyncZod } from "@fastify/type-provider-zod";
 import { createRecordInstallController } from "../controllers/stats/record-install.controller.js";
 
+/**
+ * Роут статистики установок.
+ */
 const statsRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.post(
     "/stats/installs",

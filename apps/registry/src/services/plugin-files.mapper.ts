@@ -5,10 +5,16 @@ import type { PluginFileInsert } from "../registry/plugins-repository.js";
 
 export type PluginFileMeta = z.infer<typeof pluginPublishMetadataSchema>["files"][number];
 
+/**
+ * Строит ключ файла из компонента, ИИ и относительного пути.
+ */
 export function buildFileKey(component: string, ai: string | null, relativePath: string): string {
   return `${component}::${ai ?? ""}::${relativePath}`;
 }
 
+/**
+ * Связывает метаданные файлов с загруженными буферами и возвращает список ненайденных.
+ */
 export function attachFileContents(
   files: PluginFileMeta[],
   fileBuffers: Map<string, Buffer>,
@@ -32,6 +38,9 @@ export function attachFileContents(
   return { files: withContent, missing };
 }
 
+/**
+ * Строит записи файлов для вставки в БД по метаданным и результату записи на диск.
+ */
 export function buildFilesForInsert(
   metadataFiles: PluginFileMeta[],
   written: Awaited<ReturnType<typeof writeVersionFiles>>,

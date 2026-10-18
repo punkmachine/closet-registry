@@ -2,6 +2,9 @@ import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedCol
 import type { Plugin } from "./plugin.entity.js";
 import type { PluginVersion } from "./plugin-version.entity.js";
 
+/**
+ *
+ */
 @Entity({ name: "install_events" })
 export class InstallEvent {
   @PrimaryGeneratedColumn({ type: "bigint" })

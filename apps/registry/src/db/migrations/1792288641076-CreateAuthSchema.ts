@@ -8,7 +8,7 @@ export class CreateAuthSchema1792288641076 implements MigrationInterface {
   name = "CreateAuthSchema1792288641076";
 
   /**
-   *
+   * Создаёт таблицы авторизации и колонки авторства версий.
    */
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
@@ -91,7 +91,7 @@ export class CreateAuthSchema1792288641076 implements MigrationInterface {
   }
 
   /**
-   *
+   * Откатывает таблицы авторизации и колонки авторства версий.
    */
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(

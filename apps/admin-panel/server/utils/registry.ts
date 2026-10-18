@@ -107,7 +107,7 @@ export async function registryFetchRaw<T>(
 }
 
 /**
- *
+ * Выполняет запрос к реестру и возвращает только тело ответа.
  */
 export async function registryFetch<T>(event: H3Event, path: string, options: RegistryFetchOptions = {}): Promise<T> {
   const { data } = await registryFetchRaw<T>(event, path, options);

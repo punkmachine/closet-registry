@@ -14,6 +14,7 @@ const authPluginImpl: FastifyPluginAsync = async (fastify) => {
 
     const token = parseBearerToken(request.headers.authorization);
 
+    // eslint-disable-next-line security/detect-possible-timing-attacks -- проверка наличия токена, а не сравнение секретов
     if (token === undefined) {
       throw new UnauthorizedError();
     }

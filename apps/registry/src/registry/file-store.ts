@@ -23,7 +23,7 @@ export function getRegistryPluginsDir(): string {
  */
 export class PathTraversalError extends Error {
   /**
-   *
+   * Создаёт ошибку для пути, выходящего за каталог версии плагина.
    */
   constructor(public readonly unsafePath: string) {
     super(`Unsafe file path outside of plugin version directory: ${unsafePath}`);
@@ -85,14 +85,14 @@ export function assertSafeSlugSegment(value: string): string {
 }
 
 /**
- *
+ * Возвращает абсолютный путь к каталогу версии плагина на диске.
  */
 export function getPluginVersionDir(pluginSlug: string, version: string): string {
   return path.resolve(getRegistryPluginsDir(), assertSafeSlugSegment(pluginSlug), assertSafeSlugSegment(version));
 }
 
 /**
- *
+ * Строит относительный путь файла в хранилище: компонент, необязательный ИИ и путь файла.
  */
 export function buildStorageRelativePath(
   component: PluginComponent,
@@ -103,7 +103,7 @@ export function buildStorageRelativePath(
 }
 
 /**
- *
+ * Разрешает относительный путь внутри каталога версии, отклоняя path traversal.
  */
 export function resolveSafePath(versionDir: string, relativePath: string): string {
   if (
@@ -126,7 +126,7 @@ export function resolveSafePath(versionDir: string, relativePath: string): strin
 }
 
 /**
- *
+ * Записывает файлы версии на диск, предварительно удаляя прежний каталог версии.
  */
 export async function writeVersionFiles(
   pluginSlug: string,
@@ -161,7 +161,7 @@ export async function writeVersionFiles(
 }
 
 /**
- *
+ * Читает содержимое файлов версии с диска.
  */
 export async function readVersionFiles(
   pluginSlug: string,

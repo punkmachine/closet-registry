@@ -12,6 +12,9 @@ import { createListPluginsController } from "../controllers/plugins/list-plugins
 import { createListVersionsController } from "../controllers/plugins/list-versions.controller.js";
 import { createReadBundleService } from "../services/read-bundle.service.js";
 
+/**
+ * Роуты чтения плагинов и их версий.
+ */
 const pluginsRoutes: FastifyPluginAsyncZod = async (fastify) => {
   const orm = fastify.orm;
   const readBundle = createReadBundleService(orm);

@@ -1,6 +1,9 @@
 import type { FastifyRequest } from "fastify";
 import type { z } from "zod";
 
+/**
+ * Собирает из multipart-запроса поле metadata и буферы файлов.
+ */
 export async function collectMultipartParts(
   request: FastifyRequest,
 ): Promise<{ metadataRaw: unknown; fileBuffers: Map<string, Buffer> }> {
@@ -18,6 +21,9 @@ export async function collectMultipartParts(
   return { metadataRaw, fileBuffers };
 }
 
+/**
+ * Разбирает JSON из поля metadata и возвращает результат или текст ошибки.
+ */
 export function parseMetadataJson(metadataRaw: unknown): { ok: true; value: unknown } | { ok: false; error: string } {
   if (typeof metadataRaw !== "string") {
     return { ok: false, error: "Missing required 'metadata' field" };
@@ -30,6 +36,9 @@ export function parseMetadataJson(metadataRaw: unknown): { ok: true; value: unkn
   }
 }
 
+/**
+ * Форматирует ошибку валидации zod в одну строку.
+ */
 export function formatZodError(error: z.ZodError): string {
   const issues = error.issues
     .map((issue) => (issue.path.length > 0 ? `${issue.path.join(".")}: ${issue.message}` : issue.message))

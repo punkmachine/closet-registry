@@ -1,3 +1,6 @@
+/**
+ * Форматирует размер в байтах в читаемую строку.
+ */
 export function formatBytes(bytes: number | string): string {
   const value = typeof bytes === "string" ? Number(bytes) : bytes;
 
@@ -12,6 +15,9 @@ export function formatBytes(bytes: number | string): string {
   return value < 1024 * 1024 ? `${(value / 1024).toFixed(1)} KB` : `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/**
+ * Форматирует ISO-дату для отображения; при невалидной дате возвращает исходную строку.
+ */
 export function formatDate(iso: string): string {
   const date = new Date(iso);
 

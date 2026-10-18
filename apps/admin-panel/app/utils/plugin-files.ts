@@ -204,7 +204,7 @@ export function formFileFromBundleFile(file: PluginBundleFile): FormFile {
 }
 
 /**
- *
+ * Создаёт пустую строку формы файла плагина с новым id.
  */
 export function emptyTextFormFile(): FormFile {
   return {

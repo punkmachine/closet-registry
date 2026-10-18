@@ -18,7 +18,7 @@ const deleteGuard = requirePermission("plugins", "delete");
 const adminRateLimitConfig = { rateLimit: { max: 300, timeWindow: "1 minute" } };
 
 /**
- *
+ * Admin-роуты записи плагинов: публикация, обновление и удаление.
  */
 const adminPluginsRoutes: FastifyPluginAsyncZod = async (fastify) => {
   const publishService = createPublishPluginService(fastify.orm);

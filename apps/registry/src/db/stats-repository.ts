@@ -1,6 +1,9 @@
 import type { DataSource } from "typeorm";
 import { InstallEvent } from "./entities/install-event.entity.js";
 
+/**
+ * Записывает факт установки конкретной версии плагина.
+ */
 export async function recordInstall(
   dataSource: DataSource,
   pluginId: string,
