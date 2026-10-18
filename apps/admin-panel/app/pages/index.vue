@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { PluginListResponse } from "@closet/contract";
 import { PluginCard } from "@closet/ui";
+import { errorMessage } from "~/utils/format";
 
 const NuxtLink = resolveComponent("NuxtLink");
 const { can } = useAuth();

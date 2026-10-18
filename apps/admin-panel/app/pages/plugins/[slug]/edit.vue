@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PluginBundle, PluginListResponse } from "@closet/contract";
+import { errorMessage } from "~/utils/format";
 import { buildFormData, type PluginFormValues } from "~/utils/plugin-files";
 
 definePageMeta({ permission: { resource: "plugins", action: "write" } });

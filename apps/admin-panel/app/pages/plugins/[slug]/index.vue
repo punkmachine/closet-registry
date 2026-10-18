@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { PluginBundle, PluginVersionListResponse } from "@closet/contract";
 import { ConfirmDialog, FileBrowser, formatDate } from "@closet/ui";
+import { errorMessage } from "~/utils/format";
 
 const { can } = useAuth();
 const route = useRoute();

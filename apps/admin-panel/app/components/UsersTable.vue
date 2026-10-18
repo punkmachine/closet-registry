@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ASSIGNABLE_ROLES, type AssignableRole, type User } from "@closet/contract";
 import { formatDate } from "@closet/ui";
+import { isUserLocked } from "~/utils/permissions";
 
 interface Props {
   users: User[];
