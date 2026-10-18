@@ -1,7 +1,19 @@
-import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from "typeorm";
 import { PluginDependency } from "./plugin-dependency.entity.js";
 import { PluginVersion } from "./plugin-version.entity.js";
+import type { User } from "./user.entity.js";
 
+/**
+ *
+ */
 @Entity({ name: "plugins" })
 export class Plugin {
   @PrimaryGeneratedColumn({ type: "bigint" })
@@ -24,6 +36,12 @@ export class Plugin {
 
   @UpdateDateColumn({ type: "timestamptz" })
   declare updatedAt: Date;
+
+  @ManyToOne("User", { nullable: false, onDelete: "RESTRICT" })
+  declare createdBy: User;
+
+  @ManyToOne("User", { nullable: false, onDelete: "RESTRICT" })
+  declare updatedBy: User;
 
   @OneToMany(
     () => PluginVersion,

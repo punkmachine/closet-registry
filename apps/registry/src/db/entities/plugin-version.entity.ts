@@ -11,7 +11,11 @@ import {
 } from "typeorm";
 import type { Plugin } from "./plugin.entity.js";
 import { PluginFile } from "./plugin-file.entity.js";
+import type { User } from "./user.entity.js";
 
+/**
+ *
+ */
 @Entity({ name: "plugin_versions" })
 @Unique(["plugin", "version"])
 export class PluginVersion {
@@ -39,6 +43,12 @@ export class PluginVersion {
 
   @UpdateDateColumn({ type: "timestamptz" })
   declare updatedAt: Date;
+
+  @ManyToOne("User", { nullable: false, onDelete: "RESTRICT" })
+  declare createdBy: User;
+
+  @ManyToOne("User", { nullable: false, onDelete: "RESTRICT" })
+  declare updatedBy: User;
 
   @OneToMany(
     () => PluginFile,

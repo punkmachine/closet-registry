@@ -19,6 +19,7 @@ import type { DataSource } from "typeorm";
 import type { Plugin } from "../../src/db/entities/plugin.entity.js";
 import type { PluginFile } from "../../src/db/entities/plugin-file.entity.js";
 import type { PluginVersion } from "../../src/db/entities/plugin-version.entity.js";
+import type { User } from "../../src/db/entities/user.entity.js";
 import type {
   PluginFileInsert,
   PluginListItem,
@@ -28,6 +29,9 @@ import type {
 } from "../../src/registry/plugins-repository.js";
 
 /** Та же ошибка, что в реальном репозитории; роуты проверяют её через instanceof из подменённого модуля. */
+/** Автор-заглушка: авторство в fake-db пока не моделируется (появится вместе с auth-слоем). */
+const STUB_USER = { id: "1", username: "stub" } as User;
+
 export class PluginVersionConflictError extends Error {
   constructor(
     public readonly slug: string,
@@ -136,7 +140,7 @@ export class FakeDb {
   }
 
   private toPluginEntity(record: PluginRecord): Plugin {
-    return { ...record, versions: [], dependencies: [], dependents: [] };
+    return { ...record, createdBy: STUB_USER, updatedBy: STUB_USER, versions: [], dependencies: [], dependents: [] };
   }
 
   private toFileEntity(record: FileRecord, version: PluginVersion): PluginFile {
@@ -155,6 +159,8 @@ export class FakeDb {
       deletedAt: record.deletedAt,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
+      createdBy: STUB_USER,
+      updatedBy: STUB_USER,
       files: [],
     };
     if (withFiles) {
