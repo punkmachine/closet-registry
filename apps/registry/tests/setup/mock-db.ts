@@ -1,12 +1,3 @@
-/**
- * setupFiles проекта registry-api: подменяет слой данных ДО загрузки любого тестового файла.
- * vi.mock в setupFiles хойстится и действует на все импорты в тестах и приложении, поэтому
- * динамический `import("../../src/app.js")` в buildTestApp получает fake вместо Postgres/TypeORM.
- *
- * Подменяются: репозитории (plugins-repository, stats-repository) и плагины postgres/typeorm.
- * Не подменяются: роуты, валидация, file-store, admin-auth, rate-limit, multipart.
- * Пути относительно этого файла; они резолвятся в те же модули, что импортирует src/app.ts.
- */
 import { vi } from "vitest";
 
 vi.mock("../../src/registry/plugins-repository.js", async () => {
@@ -17,6 +8,26 @@ vi.mock("../../src/registry/plugins-repository.js", async () => {
 vi.mock("../../src/db/stats-repository.js", async () => {
   const { createStatsRepositoryModule } = await import("../helpers/fake-db.js");
   return createStatsRepositoryModule();
+});
+
+vi.mock("../../src/auth/repository/sessions.js", async (importOriginal) => {
+  const { fakeAuth } = await import("../helpers/fake-auth.js");
+  return {
+    ...(await importOriginal<Record<string, unknown>>()),
+    findSessionByTokenHash: (_dataSource: unknown, tokenHash: string) =>
+      Promise.resolve(fakeAuth.findSession(tokenHash)),
+    touchSession: () => Promise.resolve(false),
+  };
+});
+
+vi.mock("../../src/auth/repository/api-tokens.js", async (importOriginal) => {
+  const { fakeAuth } = await import("../helpers/fake-auth.js");
+  return {
+    ...(await importOriginal<Record<string, unknown>>()),
+    findActiveApiTokenByHash: (_dataSource: unknown, tokenHash: string) =>
+      Promise.resolve(fakeAuth.findActiveApiToken(tokenHash)),
+    touchApiToken: () => Promise.resolve(false),
+  };
 });
 
 vi.mock("../../src/plugins/postgres.js", async () => {

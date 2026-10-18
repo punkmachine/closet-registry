@@ -9,7 +9,7 @@ import type { FastifyError, FastifyInstance } from "fastify";
 import Fastify from "fastify";
 
 import { HttpError } from "./errors/http-error.js";
-import adminAuthPlugin from "./plugins/admin-auth.js";
+import authPlugin from "./plugins/auth.js";
 import multipartPlugin from "./plugins/multipart.js";
 import postgresPlugin from "./plugins/postgres.js";
 import rateLimitPlugin from "./plugins/rate-limit.js";
@@ -21,6 +21,9 @@ import healthRoutes from "./routes/health.js";
 import pluginsRoutes from "./routes/plugins.js";
 import statsRoutes from "./routes/stats.js";
 
+/**
+ *
+ */
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
     logger: process.env.NODE_ENV === "production" ? true : { transport: { target: "pino-pretty" } },
@@ -47,7 +50,11 @@ export async function buildApp(): Promise<FastifyInstance> {
     }
 
     if (error instanceof HttpError) {
-      reply.code(error.statusCode).send({ error: error.message });
+      reply
+        .code(error.statusCode)
+        .send(
+          error.errorCode === undefined ? { error: error.message } : { error: error.message, code: error.errorCode },
+        );
       return;
     }
 
@@ -79,7 +86,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   await app.register(
     async (v1Scope) => {
-      await v1Scope.register(adminAuthPlugin);
+      await v1Scope.register(authPlugin);
 
       await v1Scope.register(statsRoutes);
       await v1Scope.register(pluginsRoutes);

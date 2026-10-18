@@ -6,14 +6,20 @@ import {
 } from "@closet/contract";
 import type { FastifyPluginAsyncZod } from "@fastify/type-provider-zod";
 import { z } from "zod";
+import { requirePermission } from "../auth/guards.js";
 import { createDeletePluginController } from "../controllers/admin-plugins/delete-plugin.controller.js";
 import { createDeletePluginVersionController } from "../controllers/admin-plugins/delete-plugin-version.controller.js";
 import { createPublishPluginController } from "../controllers/admin-plugins/publish-plugin.controller.js";
 import { createUpdatePluginVersionController } from "../controllers/admin-plugins/update-plugin-version.controller.js";
 import { createPublishPluginService } from "../services/publish-plugin.service.js";
 
+const writeGuard = requirePermission("plugins", "write");
+const deleteGuard = requirePermission("plugins", "delete");
 const adminRateLimitConfig = { rateLimit: { max: 300, timeWindow: "1 minute" } };
 
+/**
+ *
+ */
 const adminPluginsRoutes: FastifyPluginAsyncZod = async (fastify) => {
   const publishService = createPublishPluginService(fastify.orm);
 
@@ -28,6 +34,7 @@ const adminPluginsRoutes: FastifyPluginAsyncZod = async (fastify) => {
           409: errorResponseSchema,
         },
       },
+      onRequest: writeGuard,
       config: adminRateLimitConfig,
     },
     createPublishPluginController(publishService),
@@ -44,6 +51,7 @@ const adminPluginsRoutes: FastifyPluginAsyncZod = async (fastify) => {
           404: errorResponseSchema,
         },
       },
+      onRequest: writeGuard,
       config: adminRateLimitConfig,
     },
     createUpdatePluginVersionController(publishService),
@@ -56,6 +64,7 @@ const adminPluginsRoutes: FastifyPluginAsyncZod = async (fastify) => {
         params: pluginSlugVersionParamsSchema,
         response: { 204: z.void(), 404: errorResponseSchema },
       },
+      onRequest: deleteGuard,
       config: adminRateLimitConfig,
     },
     createDeletePluginVersionController(fastify.orm),
@@ -68,6 +77,7 @@ const adminPluginsRoutes: FastifyPluginAsyncZod = async (fastify) => {
         params: pluginSlugParamsSchema,
         response: { 204: z.void(), 404: errorResponseSchema },
       },
+      onRequest: deleteGuard,
       config: adminRateLimitConfig,
     },
     createDeletePluginController(fastify.orm),
