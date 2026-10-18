@@ -1,4 +1,4 @@
-import type { PluginComponent, PluginFileAi } from "@closet/contract";
+import type { AuthorRef, PluginComponent, PluginFileAi } from "@closet/contract";
 import semver from "semver";
 import type { DataSource, EntityManager } from "typeorm";
 import { In } from "typeorm";
@@ -50,6 +50,8 @@ export interface PluginVersionResult {
   description: string;
   version: string;
   changelog: string | null;
+  createdBy: AuthorRef;
+  updatedBy: AuthorRef;
   dependencies: string[];
   files: PluginFileInsert[];
 }
@@ -152,6 +154,9 @@ export function toPluginVersionResult(
     description: plugin.description,
     version: version.version,
     changelog: version.changelog,
+    // TODO: заглушка, подставлять реального автора из БД
+    createdBy: { username: "unknown" },
+    updatedBy: { username: "unknown" },
     dependencies: dependencySlugs,
     files: version.files.map((file) => ({
       component: file.component,

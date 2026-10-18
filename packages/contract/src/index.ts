@@ -1,3 +1,4 @@
+export * from "./auth.schemas.js";
 export * from "./components.js";
 export * from "./errors.schemas.js";
 export * from "./health.schemas.js";

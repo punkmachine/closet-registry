@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { authorRefSchema } from "./auth.schemas.js";
 import { PLUGIN_COMPONENTS, PLUGIN_FILE_AI_VALUES } from "./components.js";
 import { semverSchema, slugSchema, versionOrLatestSchema } from "./identifiers.js";
 import { MAX_CHANGELOG_LENGTH, MAX_DESCRIPTION_LENGTH } from "./limits.js";
@@ -75,6 +76,8 @@ export const pluginVersionResponseSchema = z.object({
   description: z.string(),
   version: z.string(),
   changelog: z.string().nullable(),
+  createdBy: authorRefSchema,
+  updatedBy: authorRefSchema,
   dependencies: z.array(z.string()),
   files: z.array(pluginFileMetadataSchema),
 });
@@ -118,6 +121,8 @@ export const pluginBundleResponseSchema = z.object({
   description: z.string(),
   version: z.string(),
   changelog: z.string().nullable(),
+  createdBy: authorRefSchema,
+  updatedBy: authorRefSchema,
   dependencies: z.array(z.string()),
   files: z.array(pluginBundleFileSchema),
 });
@@ -129,6 +134,8 @@ export const pluginListItemSchema = z.object({
   slug: z.string(),
   description: z.string(),
   latestVersion: z.string(),
+  createdBy: authorRefSchema,
+  updatedBy: authorRefSchema,
   updatedAt: z.string(),
 });
 
@@ -148,6 +155,8 @@ export const pluginVersionListItemSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   fileCount: z.number().int(),
+  createdBy: authorRefSchema,
+  updatedBy: authorRefSchema,
 });
 
 /**

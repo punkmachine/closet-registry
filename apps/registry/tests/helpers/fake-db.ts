@@ -479,6 +479,8 @@ export function toPluginVersionResult(
     description: plugin.description,
     version: version.version,
     changelog: version.changelog,
+    createdBy: { username: "unknown" },
+    updatedBy: { username: "unknown" },
     dependencies: dependencySlugs,
     files: version.files.map((file) => ({
       component: file.component,
