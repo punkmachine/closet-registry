@@ -305,6 +305,7 @@ describe("buildFormData", () => {
       rootPath: true,
       merge: false,
       template: true,
+      format: "raw",
     });
   });
 

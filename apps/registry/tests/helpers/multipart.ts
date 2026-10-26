@@ -30,6 +30,8 @@ export interface TestPluginFile {
   merge?: boolean;
   mergeKeyPath?: string;
   template?: boolean;
+  format?: "raw" | "spec";
+  targets?: PluginFileAi[];
 }
 
 export interface BuildPublishPayloadOptions {
@@ -105,6 +107,8 @@ export function buildPublishPayload(options: BuildPublishPayloadOptions = {}): P
           ...(f.merge !== undefined && { merge: f.merge }),
           ...(f.mergeKeyPath !== undefined && { mergeKeyPath: f.mergeKeyPath }),
           ...(f.template !== undefined && { template: f.template }),
+          ...(f.format !== undefined && { format: f.format }),
+          ...(f.targets !== undefined && { targets: f.targets }),
         })),
       });
     addField("metadata", metadata);

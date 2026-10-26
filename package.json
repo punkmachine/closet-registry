@@ -15,7 +15,7 @@
     "build": "pnpm build:packages && pnpm --filter \"./apps/*\" build",
     "typecheck": "pnpm build:packages && tsc --noEmit -p tsconfig.json && pnpm --filter \"./packages/*\" --filter \"./apps/*\" typecheck",
     "test": "vitest run",
-    "test:unit": "vitest run --project contract --project registry-unit --project admin-unit",
+    "test:unit": "vitest run --project contract --project harness-render --project registry-unit --project admin-unit",
     "test:api": "vitest run --project registry-api",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

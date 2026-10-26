@@ -1,4 +1,4 @@
-import type { AuthorRef, PluginComponent, PluginFileAi } from "@closet/contract";
+import type { AuthorRef, HarnessId, PluginComponent, PluginFileAi, PluginFileFormat } from "@closet/contract";
 import semver from "semver";
 import type { DataSource, EntityManager } from "typeorm";
 import { In } from "typeorm";
@@ -35,6 +35,8 @@ export interface PluginFileInsert {
   merge: boolean;
   mergeKeyPath: string | null;
   template: boolean;
+  format: PluginFileFormat;
+  targets: HarnessId[] | null;
 }
 
 export interface PluginVersionWriteInput {
@@ -193,6 +195,8 @@ export function toPluginVersionResult(
       merge: file.merge,
       mergeKeyPath: file.mergeKeyPath,
       template: file.template,
+      format: file.format,
+      targets: file.targets,
     })),
   };
 }

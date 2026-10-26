@@ -1,6 +1,7 @@
 export * from "./auth.schemas.js";
 export * from "./components.js";
 export * from "./errors.schemas.js";
+export * from "./harnesses.js";
 export * from "./health.schemas.js";
 export * from "./identifiers.js";
 export * from "./limits.js";

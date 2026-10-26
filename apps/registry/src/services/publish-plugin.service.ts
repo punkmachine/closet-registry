@@ -14,7 +14,8 @@ import {
   toPluginVersionResult,
   updatePluginVersion,
 } from "../registry/plugins-repository.js";
-import { attachFileContents, buildFilesForInsert, type PluginFileMeta } from "./plugin-files.mapper.js";
+import { attachFileContents, buildFileKey, buildFilesForInsert, type PluginFileMeta } from "./plugin-files.mapper.js";
+import { bundleFileKey, generateFromSpec, SpecError } from "./spec-files.js";
 
 export interface PublishPluginService {
   publish: (metadataRaw: unknown, fileBuffers: Map<string, Buffer>, actor: User) => Promise<PluginVersionResult>;
@@ -48,7 +49,49 @@ function parseMetadata<S extends z.ZodType>(metadataRaw: unknown, schema: S): z.
 }
 
 /**
- * Прикрепляет содержимое файлов из multipart к метаданным; нехватка содержимого -> `400`.
+ * Проверяет, что каждый spec-файл разбирается и рендерится под все свои цели, а сгенерированные файлы
+ * разных spec-файлов не сталкиваются по пути; иначе `400` (а не `500` при чтении bundle).
+ */
+function assertSpecFilesRenderable(files: PluginFileMeta[], fileBuffers: Map<string, Buffer>): void {
+  const generatedKeys = new Map<string, string>();
+
+  for (const file of files) {
+    if (file.format !== "spec") {
+      continue;
+    }
+
+    const key = buildFileKey(file.component, file.ai, file.relativePath);
+    const content = fileBuffers.get(key);
+
+    if (!content) {
+      continue;
+    }
+
+    try {
+      const generatedFiles = generateFromSpec(file.component, file.targets ?? [], content);
+
+      for (const generated of generatedFiles) {
+        const generatedKey = bundleFileKey(generated.component, generated.ai, generated.relativePath);
+        const owner = generatedKeys.get(generatedKey);
+
+        if (owner !== undefined) {
+          throw new BadRequestError(`Spec files ${owner} and ${key} generate the same file ${generatedKey}`);
+        }
+
+        generatedKeys.set(generatedKey, key);
+      }
+    } catch (error) {
+      if (error instanceof SpecError) {
+        throw new BadRequestError(`Invalid spec ${key}: ${error.message}`);
+      }
+
+      throw error;
+    }
+  }
+}
+
+/**
+ * Прикрепляет содержимое файлов из multipart к метаданным; нехватка содержимого или невалидный spec -> `400`.
  */
 function attachContents(files: PluginFileMeta[], fileBuffers: Map<string, Buffer>) {
   const { files: filesWithContent, missing } = attachFileContents(files, fileBuffers);
@@ -56,6 +99,8 @@ function attachContents(files: PluginFileMeta[], fileBuffers: Map<string, Buffer
   if (missing.length > 0) {
     throw new BadRequestError(`Missing file content for: ${missing.join(", ")}`);
   }
+
+  assertSpecFilesRenderable(files, fileBuffers);
 
   return filesWithContent;
 }

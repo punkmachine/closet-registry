@@ -1,0 +1,30 @@
+{
+  "name": "@closet/harness-render",
+  "version": "0.1.0",
+  "description": "Чистые функции разбора нейтрального источника (Markdown + frontmatter) и рендера файлов под harness'ы closet-registry. Без IO",
+  "type": "module",
+  "private": true,
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "development": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --root ../.. --project harness-render"
+  },
+  "dependencies": {
+    "@closet/contract": "workspace:*",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@closet/config": "workspace:*",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

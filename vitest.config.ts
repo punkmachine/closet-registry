@@ -5,6 +5,7 @@ import { defineConfig } from "vitest/config";
 const fromRoot = (relative: string) => fileURLToPath(new URL(relative, import.meta.url));
 
 const contractAlias = { "@closet/contract": fromRoot("./packages/contract/src/index.ts") };
+const renderAlias = { "@closet/harness-render": fromRoot("./packages/harness-render/src/index.ts") };
 
 export default defineConfig({
   test: {
@@ -21,6 +22,15 @@ export default defineConfig({
       {
         resolve: { alias: contractAlias },
         test: {
+          name: "harness-render",
+          root: "./packages/harness-render",
+          environment: "node",
+          include: ["tests/**/*.test.ts"],
+        },
+      },
+      {
+        resolve: { alias: { ...contractAlias, ...renderAlias } },
+        test: {
           name: "registry-unit",
           root: "./apps/registry",
           environment: "node",
@@ -28,7 +38,7 @@ export default defineConfig({
         },
       },
       {
-        resolve: { alias: contractAlias },
+        resolve: { alias: { ...contractAlias, ...renderAlias } },
         test: {
           name: "registry-api",
           root: "./apps/registry",
@@ -43,6 +53,7 @@ export default defineConfig({
         resolve: {
           alias: {
             ...contractAlias,
+            ...renderAlias,
             "~~": fromRoot("./apps/admin-panel"),
             "@@": fromRoot("./apps/admin-panel"),
             "~": fromRoot("./apps/admin-panel/app"),

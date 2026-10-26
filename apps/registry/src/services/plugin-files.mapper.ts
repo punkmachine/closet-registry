@@ -63,6 +63,8 @@ export function buildFilesForInsert(
       merge: file.merge,
       mergeKeyPath: file.mergeKeyPath ?? null,
       template: file.template,
+      format: file.format,
+      targets: file.format === "spec" ? (file.targets ?? null) : null,
     };
   });
 }

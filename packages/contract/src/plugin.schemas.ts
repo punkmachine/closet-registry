@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 import { authorRefSchema } from "./auth.schemas.js";
-import { PLUGIN_COMPONENTS, PLUGIN_FILE_AI_VALUES } from "./components.js";
+import { PLUGIN_COMPONENTS, PLUGIN_FILE_AI_VALUES, PLUGIN_FILE_FORMATS } from "./components.js";
+import { HARNESS_IDS, isHarnessSupported, isSpecComponent } from "./harnesses.js";
 import { semverSchema, slugSchema, versionOrLatestSchema } from "./identifiers.js";
 import { MAX_CHANGELOG_LENGTH, MAX_DESCRIPTION_LENGTH } from "./limits.js";
 
@@ -16,9 +17,20 @@ export const pluginComponentSchema = z.enum(PLUGIN_COMPONENTS);
 export const pluginFileAiSchema = z.enum(PLUGIN_FILE_AI_VALUES);
 
 /**
- * Метаданные файла без `content`: используются во входящем multipart-запросе и как база для ответа сервера.
+ * Формат хранимого файла: `raw` — готовый файл как есть, `spec` — нейтральный источник
+ * (Markdown + frontmatter), из которого реестр при выдаче bundle генерирует файлы под каждый harness.
  */
-const pluginFileObjectSchema = z.object({
+export const pluginFileFormatSchema = z.enum(PLUGIN_FILE_FORMATS);
+
+/**
+ * Идентификатор harness'а (`claude-code`/`codex`).
+ */
+export const harnessIdSchema = z.enum(HARNESS_IDS);
+
+/**
+ * Общие поля файла: используются во входящем запросе, в метаданных версии и в bundle.
+ */
+const pluginFileBaseShape = {
   component: pluginComponentSchema,
   ai: pluginFileAiSchema.nullable().default(null),
   relativePath: z.string().min(1),
@@ -26,24 +38,93 @@ const pluginFileObjectSchema = z.object({
   merge: z.boolean().optional().default(false),
   mergeKeyPath: z.string().min(1).optional(),
   template: z.boolean().optional().default(false),
+};
+
+/**
+ * Метаданные файла без `content` во входящем запросе: база + `format`/`targets`.
+ */
+const pluginFileObjectSchema = z.object({
+  ...pluginFileBaseShape,
+  format: pluginFileFormatSchema.optional().default("raw"),
+  targets: z.array(harnessIdSchema).optional(),
 });
 
 /**
  * Метаданные файла во входящем запросе публикации/обновления версии.
- * Дополнительно требует `mergeKeyPath` для файлов с `merge: true`.
+ * Дополнительно требует `mergeKeyPath` для файлов с `merge: true` и согласованность `format`/`targets`:
+ * `spec` — только общий (`ai: null`) файл рендерящегося компонента с непустым списком поддерживаемых целей.
  */
-export const pluginFileInputSchema = pluginFileObjectSchema.refine(
-  (file) => !file.merge || file.mergeKeyPath !== undefined,
-  { message: "merge files must specify mergeKeyPath", path: ["mergeKeyPath"] },
-);
+export const pluginFileInputSchema = pluginFileObjectSchema
+  .refine((file) => !file.merge || file.mergeKeyPath !== undefined, {
+    message: "merge files must specify mergeKeyPath",
+    path: ["mergeKeyPath"],
+  })
+  .superRefine((file, ctx) => {
+    if (file.format === "raw") {
+      if (file.targets !== undefined) {
+        ctx.addIssue({ code: "custom", message: "targets are allowed only for spec files", path: ["targets"] });
+      }
+
+      return;
+    }
+
+    if (!isSpecComponent(file.component)) {
+      ctx.addIssue({
+        code: "custom",
+        message: `spec format is not supported for component ${file.component}`,
+        path: ["format"],
+      });
+    }
+
+    if (file.ai !== null) {
+      ctx.addIssue({ code: "custom", message: "spec files must have ai: null", path: ["ai"] });
+    }
+
+    if (file.merge || file.rootPath || file.template) {
+      ctx.addIssue({
+        code: "custom",
+        message: "spec files cannot be merge/rootPath/template",
+        path: ["format"],
+      });
+    }
+
+    if (file.targets === undefined || file.targets.length === 0) {
+      ctx.addIssue({ code: "custom", message: "spec files must specify targets", path: ["targets"] });
+
+      return;
+    }
+
+    if (new Set(file.targets).size !== file.targets.length) {
+      ctx.addIssue({ code: "custom", message: "targets must be unique", path: ["targets"] });
+    }
+
+    for (const target of file.targets) {
+      if (!isHarnessSupported(file.component, target)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `component ${file.component} is not supported for ${target}`,
+          path: ["targets"],
+        });
+      }
+    }
+  });
 
 /**
- * Метаданные файла в ответе сервера.
+ * Метаданные хранимого файла в ответе сервера (без `format`/`targets`).
  */
-export const pluginFileMetadataSchema = pluginFileObjectSchema.extend({
+const pluginStoredFileSchema = z.object({
+  ...pluginFileBaseShape,
   mergeKeyPath: z.string().min(1).nullable(),
   sha256: z.string(),
   sizeBytes: z.string(),
+});
+
+/**
+ * Метаданные файла в ответе по версии: хранимый файл + `format`/`targets` (для `raw` — `null`).
+ */
+export const pluginFileMetadataSchema = pluginStoredFileSchema.extend({
+  format: pluginFileFormatSchema,
+  targets: z.array(harnessIdSchema).nullable(),
 });
 
 /**
@@ -107,8 +188,9 @@ export const pluginBundleParamsSchema = z.object({
 
 /**
  * Файл в bundle-ответе: единый эндпоинт чтения отдаёт содержимое всех файлов версии одним запросом.
+ * Всегда `raw`: spec-файлы разворачиваются сервером в отдельные файлы по harness'ам.
  */
-export const pluginBundleFileSchema = pluginFileMetadataSchema.extend({
+export const pluginBundleFileSchema = pluginStoredFileSchema.extend({
   encoding: z.enum(["utf8", "base64"]),
   content: z.string(),
 });

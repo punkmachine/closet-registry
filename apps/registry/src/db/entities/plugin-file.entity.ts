@@ -1,4 +1,4 @@
-import type { PluginComponent, PluginFileAi } from "@closet/contract";
+import type { HarnessId, PluginComponent, PluginFileAi, PluginFileFormat } from "@closet/contract";
 import { Check, Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, Unique } from "typeorm";
 import type { PluginVersion } from "./plugin-version.entity.js";
 
@@ -9,6 +9,7 @@ import type { PluginVersion } from "./plugin-version.entity.js";
 @Unique(["version", "component", "ai", "relativePath"])
 @Check(`"component" IN ('mcp', 'rules', 'hooks', 'agents', 'commands', 'skills', 'scripts')`)
 @Check(`"ai" IS NULL OR "ai" IN ('codex', 'claude-code')`)
+@Check(`"format" IN ('raw', 'spec')`)
 export class PluginFile {
   @PrimaryGeneratedColumn({ type: "bigint" })
   declare id: string;
@@ -48,6 +49,14 @@ export class PluginFile {
 
   @Column({ type: "boolean", default: false })
   declare template: boolean;
+
+  /** `raw` — файл отдаётся как есть; `spec` — нейтральный источник, разворачивается в файлы по `targets` при выдаче bundle. */
+  @Column({ type: "text", default: "raw" })
+  declare format: PluginFileFormat;
+
+  /** Цели `spec`-файла; `null` для `raw`. */
+  @Column({ type: "text", array: true, nullable: true })
+  declare targets: HarnessId[] | null;
 
   @CreateDateColumn({ type: "timestamptz" })
   declare createdAt: Date;

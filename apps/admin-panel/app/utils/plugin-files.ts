@@ -287,6 +287,7 @@ export function buildFormData(values: PluginFormValues): FormData {
     rootPath: file.rootPath,
     merge: file.merge,
     template: file.template,
+    format: "raw",
     ...(file.merge && { mergeKeyPath: file.mergeKeyPath.trim() }),
   }));
 

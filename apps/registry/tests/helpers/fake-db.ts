@@ -532,6 +532,8 @@ export function toPluginVersionResult(
       merge: file.merge,
       mergeKeyPath: file.mergeKeyPath,
       template: file.template,
+      format: file.format,
+      targets: file.targets,
     })),
   };
 }
