@@ -21,6 +21,26 @@ cd closet-registry
 }
 ```
 
+## Универсальный агент: один текст — файлы под каждый ИИ
+
+В админке при добавлении файла плагина есть режим «универсальный агент»: пишется один текст, выбираются цели (`claude-code`, `codex`), а реестр при выдаче bundle сам собирает файл нужного формата под каждую цель — `agents/claude-code/<name>.md` (Markdown + frontmatter) и `agents/codex/<name>.toml`. `closet-cli` получает уже готовые обычные файлы.
+
+Источник — Markdown с frontmatter:
+
+```md
+---
+name: reviewer
+description: Ревьюит диффы на баги
+claude-code:        # необязательно: поля только для этого ИИ, попадают в его файл как есть
+  model: sonnet
+codex:
+  model_reasoning_effort: high
+---
+Ты — строгий ревьюер.
+```
+
+Общие поля — только `name`, `description` и тело; всё остальное (инструменты, модель) задаётся в блоке своего ИИ. В админке есть превью результата для каждой цели; кнопка «заменить на свой файл» создаёт обычный файл под конкретный ИИ — он имеет приоритет над сгенерированным. Обычный файл агента Claude (`.claude/agents/*.md`) можно импортировать как универсальный: `name`/`description` станут общими, остальные поля frontmatter — блоком `claude-code`. Пока универсальный режим есть только у `agents`; какой ИИ какие компоненты поддерживает — в матрице `HARNESS_SUPPORT` пакета `@closet/contract`.
+
 ## Roadmap
 
 Планы развития — в [ROADMAP.md](ROADMAP.md).
@@ -46,6 +66,7 @@ pnpm dev
 - `GET /v1/plugins`
 - `GET /v1/plugins/:slug/versions`
 - `GET /v1/plugins/:slug/:version` — bundle, `version` может быть `latest`
+- `GET /v1/admin/plugins/:slug/:version/source` — версия «как хранится» (универсальные файлы не разворачиваются, есть `format`/`targets`); нужна форме редактирования в админке
 - `POST /v1/stats/installs`
 - `POST/PUT/DELETE /v1/admin/plugins...` — `multipart/form-data`
 - `POST /v1/auth/login`, `GET /v1/auth/me`, `POST /v1/auth/logout`, `POST /v1/auth/change-password`, `GET/POST/DELETE /v1/auth/token`

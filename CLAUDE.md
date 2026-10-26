@@ -6,7 +6,8 @@
 для CLI-инструмента `closet-cli` (лежит рядом, в `../closet-cli`). Плагин — это
 именованный (`slug`) набор версионированных файлов, сгруппированных по компонентам
 (`mcp`/`rules`/`hooks`/`agents`/`commands`/`skills`/`scripts`) и опционально по ИИ
-(`codex`/`claude-code`, либо общий файл). Есть bundle-чтение версии плагина,
+(`codex`/`claude-code`, либо общий файл). Файл бывает `raw` (готовый, отдаётся как есть) или `spec`
+(нейтральный источник агента, который при выдаче bundle разворачивается в файлы под каждый ИИ). Есть bundle-чтение версии плагина,
 листинг метаданных всех плагинов (`GET /v1/plugins`, под `closet-cli list --all`,
 добавлен 2026-09-13), admin write-эндпоинты за Bearer-токеном и эндпоинт
 статистики установок.
@@ -19,13 +20,19 @@
 ## Пакеты (`packages/*`)
 
 - `@closet/contract` — единственный источник контракта API: zod-схемы, `z.infer`-типы,
-  `PLUGIN_COMPONENTS`/`PLUGIN_FILE_AI_VALUES`, лимиты (`MAX_FILE_SIZE_BYTES`,
+  `PLUGIN_COMPONENTS`/`PLUGIN_FILE_AI_VALUES`/`PLUGIN_FILE_FORMATS`, `harnesses.ts` (`HARNESS_IDS`,
+  матрица поддержки `HARNESS_SUPPORT` `component × harness`, `SPEC_COMPONENTS`), лимиты (`MAX_FILE_SIZE_BYTES`,
   `MAX_FILES_PER_VERSION`), `slugSchema`/`semverSchema` (charset slug закрывает path
   traversal). Зависимости только `zod` и `semver`. **Собирается `tsc` в `dist/`**
   (`pnpm build:packages`): `exports` → `dist` (types/default) и условие `development` →
   `src` (для `tsx --conditions=development`). Исходники не отдаются как `exports`
   напрямую, потому что registry собирается с `rootDir: src` и запускается `node dist/server.js`.
   `typecheck`/`build`/`dev` в корне сами вызывают `build:packages` первым шагом.
+- `@closet/harness-render` — чистые функции без IO (зависимости `@closet/contract`, `yaml`), собирается `tsc` в
+  `dist/` так же, как contract: `parseSpec` (Markdown + frontmatter → `AgentSpec`), `renderSpec(spec, harness)`
+  (→ `<name>.md` для `claude-code`, `<name>.toml` для `codex`), `SpecDraft`/`draftToText`/`textToDraft`/`importAgentMarkdown`
+  (поля формы админки ↔ текст spec). Ошибки — `SpecError` с текстом для пользователя. Используется и сервером (bundle,
+  валидация при публикации), и админкой (превью).
 - `@closet/config` — общие tsconfig (`tsconfig/base|node|vue.json`). `apps/admin-panel/tsconfig.json`
   остаётся ссылкой на сгенерированные Nuxt'ом конфиги.
 - `@closet/ui` — Vue-компоненты (`ComponentBadge`, `PluginCard`, `ConfirmDialog`,
@@ -47,7 +54,7 @@ pnpm start                # node dist/server.js (после build)
 pnpm typecheck            # tsc --noEmit
 pnpm migration:run        # tsx src/db/run-migrations.ts (накатить миграции TypeORM)
 pnpm migration:revert     # tsx src/db/revert-migration.ts (откатить последнюю)
-pnpm test                 # vitest run (тестового набора пока нет)
+pnpm test                 # vitest run (проекты: contract, harness-render, registry-unit, registry-api, admin-unit, codemods)
 ```
 
 `.env` (не коммитится, шаблон — `.env.example`) обязателен для `dev`/`start`/
@@ -117,6 +124,32 @@ pnpm test                 # vitest run (тестового набора пока
 - `src/routes/` — `health.ts` (без префикса, без авторизации), `plugins.ts` +
   `stats.ts` (префикс `/v1`), `admin-plugins.ts` (вложенный префикс
   `/v1/admin`, `multipart.ts` только здесь).
+
+### Spec-файлы: один источник → файлы под каждый ИИ
+
+- `plugin_files.format` (`raw` по умолчанию | `spec`) и `plugin_files.targets` (`text[]`, только у spec); миграция
+  `AddPluginFileSpecFormat`. Spec — только `component: agents`, `ai: null`, без `merge`/`rootPath`/`template`, с непустыми
+  уникальными `targets`, которые поддерживает `HARNESS_SUPPORT` (проверяет `pluginFileInputSchema`). Содержимое на диске
+  лежит как загружено (Markdown + frontmatter); `targets` из метаданных приоритетнее `targets` во frontmatter.
+- Публикация/PUT: `assertSpecFilesRenderable` (`services/publish-plugin.service.ts`) пробует развернуть каждый spec и
+  отвечает `400 Invalid spec …` при ошибке, а также если два spec дают один и тот же файл (иначе падал бы `500` при чтении bundle).
+- `GET /v1/plugins/:slug/:version` (`services/read-bundle.service.ts`, `expandBundleFiles`) разворачивает spec в обычные
+  файлы (`ai` = цель, `sha256`/`sizeBytes` считаются по сгенерированному). Если среди `raw`-файлов есть файл с тем же
+  компонентом/`ai`/путём, побеждает `raw` (override), сгенерированный пропускается. В bundle поле `format` не отдаётся:
+  closet-cli видит только обычные файлы.
+- `GET /v1/admin/plugins/:slug/:version/source` (`services/read-source.service.ts`, право `plugins:write`) отдаёт версию
+  «как хранится»: spec не разворачивается, у файлов есть `format`/`targets`. Нужен форме редактирования в админке:
+  bundle отдал бы уже готовые файлы, и сохранение превратило бы spec в набор raw-файлов.
+
+### Админка: универсальный агент в `PluginForm`
+
+`FormFile` (`apps/admin-panel/app/utils/plugin-files.ts`) кроме `raw` умеет `format: "spec"` с `targets` и `draft`
+(`SpecDraft`: имя, описание, тело, YAML-блоки Claude/Codex). Путь spec-файла выводится из имени (`<name>.md`,
+`fileRelativePath`), содержимое собирается `draftToText` при отправке (`buildFormData`); `validateForm` ловит ошибки до
+запроса. Превью на каждую цель — `previewSpec` (рендер на клиенте через `@closet/harness-render`). «Заменить на свой файл» —
+`overrideFileFor` (raw-файл под ИИ с содержимым рендера). Обычный файл агента импортируется кнопкой
+(`importAsSpecFile`). Страница редактирования читает `/api/plugins/:slug/:version/source`, а не bundle. Если исходник spec не
+разобрался, строка показывается как текстовый файл без структурной формы.
 
 ### Два подключения к Postgres — это не ошибка
 
