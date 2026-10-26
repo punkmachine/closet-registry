@@ -210,6 +210,22 @@ export const pluginBundleResponseSchema = z.object({
 });
 
 /**
+ * Файл в исходном виде (`GET /v1/admin/plugins/:slug/:version/source`): `spec` не разворачивается,
+ * поэтому у файла есть `format`/`targets`. Нужен форме редактирования в админке.
+ */
+export const pluginSourceFileSchema = pluginFileMetadataSchema.extend({
+  encoding: z.enum(["utf8", "base64"]),
+  content: z.string(),
+});
+
+/**
+ * Ответ `GET /v1/admin/plugins/:slug/:version/source`: версия с файлами в том виде, в каком они хранятся.
+ */
+export const pluginSourceResponseSchema = pluginBundleResponseSchema.extend({
+  files: z.array(pluginSourceFileSchema),
+});
+
+/**
  * Элемент `GET /v1/plugins`: опубликованный плагин (не версия) — slug и последняя semver-версия.
  */
 export const pluginListItemSchema = z.object({
@@ -256,6 +272,8 @@ export type PluginUpdateMetadata = z.infer<typeof pluginUpdateMetadataSchema>;
 export type PluginVersionResponse = z.infer<typeof pluginVersionResponseSchema>;
 export type PluginBundleFile = z.infer<typeof pluginBundleFileSchema>;
 export type PluginBundle = z.infer<typeof pluginBundleResponseSchema>;
+export type PluginSourceFile = z.infer<typeof pluginSourceFileSchema>;
+export type PluginSource = z.infer<typeof pluginSourceResponseSchema>;
 export type PluginListItem = z.infer<typeof pluginListItemSchema>;
 export type PluginListResponse = z.infer<typeof pluginListResponseSchema>;
 export type PluginVersionListItem = z.infer<typeof pluginVersionListItemSchema>;

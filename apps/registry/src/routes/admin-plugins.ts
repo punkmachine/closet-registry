@@ -1,7 +1,9 @@
 import {
   errorResponseSchema,
+  pluginBundleParamsSchema,
   pluginSlugParamsSchema,
   pluginSlugVersionParamsSchema,
+  pluginSourceResponseSchema,
   pluginVersionResponseSchema,
 } from "@closet/contract";
 import type { FastifyPluginAsyncZod } from "@fastify/type-provider-zod";
@@ -9,9 +11,11 @@ import { z } from "zod";
 import { requirePermission } from "../auth/guards.js";
 import { createDeletePluginController } from "../controllers/admin-plugins/delete-plugin.controller.js";
 import { createDeletePluginVersionController } from "../controllers/admin-plugins/delete-plugin-version.controller.js";
+import { createGetPluginSourceController } from "../controllers/admin-plugins/get-plugin-source.controller.js";
 import { createPublishPluginController } from "../controllers/admin-plugins/publish-plugin.controller.js";
 import { createUpdatePluginVersionController } from "../controllers/admin-plugins/update-plugin-version.controller.js";
 import { createPublishPluginService } from "../services/publish-plugin.service.js";
+import { createReadSourceService } from "../services/read-source.service.js";
 
 const writeGuard = requirePermission("plugins", "write");
 const deleteGuard = requirePermission("plugins", "delete");
@@ -22,6 +26,22 @@ const adminRateLimitConfig = { rateLimit: { max: 300, timeWindow: "1 minute" } }
  */
 const adminPluginsRoutes: FastifyPluginAsyncZod = async (fastify) => {
   const publishService = createPublishPluginService(fastify.orm);
+
+  fastify.get(
+    "/plugins/:slug/:version/source",
+    {
+      schema: {
+        params: pluginBundleParamsSchema,
+        response: {
+          200: pluginSourceResponseSchema,
+          404: errorResponseSchema,
+          500: errorResponseSchema,
+        },
+      },
+      onRequest: writeGuard,
+    },
+    createGetPluginSourceController(createReadSourceService(fastify.orm)),
+  );
 
   fastify.post(
     "/plugins",

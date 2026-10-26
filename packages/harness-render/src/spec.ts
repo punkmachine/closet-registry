@@ -20,7 +20,10 @@ const NAME_PATTERN = /^[a-z0-9][a-z0-9._-]*$/;
 const NEUTRAL_KEYS = new Set<string>(["name", "description", "targets", ...HARNESS_IDS]);
 const FRONTMATTER_PATTERN = /^---[^\S\n]*\n([\s\S]*?)\n---[^\S\n]*(?:\n|$)/;
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
+/**
+ *
+ */
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -49,13 +52,13 @@ function parseTargets(value: unknown): HarnessId[] {
 }
 
 /**
- * Разбирает нейтральный источник агента.
+ * Делит Markdown на YAML-frontmatter и тело.
  *
- * @param text - Markdown с frontmatter (`name`, `description`, необязательные `targets`, `claude-code`, `codex`)
- * @returns разобранный spec
- * @throws {SpecError} если frontmatter отсутствует, невалиден или содержит неизвестные поля
+ * @param text - Markdown, начинающийся с блока `--- … ---`
+ * @returns frontmatter как объект и тело без ведущих пустых строк
+ * @throws {SpecError} если frontmatter отсутствует или не является YAML-объектом
  */
-export function parseSpec(text: string): AgentSpec {
+export function readFrontmatter(text: string): { data: Record<string, unknown>; body: string } {
   const normalized = (text.startsWith(BOM) ? text.slice(BOM.length) : text).replaceAll("\r\n", "\n");
   const match = FRONTMATTER_PATTERN.exec(normalized);
 
@@ -74,6 +77,19 @@ export function parseSpec(text: string): AgentSpec {
   if (!isPlainObject(data)) {
     throw new SpecError("Frontmatter должен быть YAML-объектом");
   }
+
+  return { data, body: normalized.slice(match[0].length).replace(/^\n+/, "").trimEnd() };
+}
+
+/**
+ * Разбирает нейтральный источник агента.
+ *
+ * @param text - Markdown с frontmatter (`name`, `description`, необязательные `targets`, `claude-code`, `codex`)
+ * @returns разобранный spec
+ * @throws {SpecError} если frontmatter отсутствует, невалиден или содержит неизвестные поля
+ */
+export function parseSpec(text: string): AgentSpec {
+  const { data, body } = readFrontmatter(text);
 
   const unknownKeys = Object.keys(data).filter((key) => !NEUTRAL_KEYS.has(key));
 
@@ -118,7 +134,7 @@ export function parseSpec(text: string): AgentSpec {
   const spec: AgentSpec = {
     name,
     description,
-    body: normalized.slice(match[0].length).replace(/^\n+/, "").trimEnd(),
+    body,
     overrides,
   };
 

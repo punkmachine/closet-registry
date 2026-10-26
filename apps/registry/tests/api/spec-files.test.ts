@@ -142,6 +142,53 @@ describe("spec-файлы", () => {
     });
   });
 
+  describe("source (исходники для редактирования)", () => {
+    const sourceOf = async (slug: string, version = "1.0.0") =>
+      await ctx.app.inject({
+        method: "GET",
+        url: `/v1/admin/plugins/${slug}/${version}/source`,
+        headers: ctx.authHeader,
+      });
+
+    it("отдаёт spec-файл неразвёрнутым вместе с format/targets", async () => {
+      const slug = uniqueSlug("source");
+      await publishPlugin(ctx.app, ctx.authHeader, { slug, version: "1.0.0", files: [specFile()] });
+
+      const response = await sourceOf(slug);
+      const { files } = response.json<{ files: Record<string, unknown>[] }>();
+
+      expect(response.statusCode).toBe(200);
+      expect(files).toHaveLength(1);
+      expect(files[0]).toMatchObject({
+        component: "agents",
+        ai: null,
+        relativePath: "reviewer.md",
+        format: "spec",
+        targets: ["claude-code", "codex"],
+        content: SPEC,
+      });
+    });
+
+    it("поддерживает latest, а raw-файлы приходят с format: raw", async () => {
+      const slug = uniqueSlug("latest");
+      await publishPlugin(ctx.app, ctx.authHeader, { slug, version: "1.0.0" });
+
+      const response = await sourceOf(slug, "latest");
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json<{ files: Record<string, unknown>[] }>().files[0]).toMatchObject({
+        format: "raw",
+        targets: null,
+      });
+    });
+
+    it("404 для неизвестной версии", async () => {
+      const response = await sourceOf(uniqueSlug("none"));
+
+      expect(response.statusCode).toBe(404);
+    });
+  });
+
   describe("bundle", () => {
     it("разворачивает один spec в два raw-файла по harness'ам", async () => {
       const slug = uniqueSlug("expand");
