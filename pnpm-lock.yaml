@@ -101,6 +101,9 @@ importers:
       '@closet/contract':
         specifier: workspace:*
         version: link:../../packages/contract
+      '@closet/harness-render':
+        specifier: workspace:*
+        version: link:../../packages/harness-render
       '@closet/ui':
         specifier: workspace:*
         version: link:../../packages/ui

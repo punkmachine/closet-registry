@@ -1,12 +1,28 @@
 import {
+  HARNESS_IDS,
+  type HarnessId,
+  isHarnessSupported,
   PLUGIN_COMPONENTS,
   PLUGIN_FILE_AI_VALUES,
   type PluginBundleFile,
   type PluginComponent,
   type PluginFileAi,
+  type PluginFileFormat,
   type PluginFileInput,
   type PluginPublishMetadata,
+  type PluginSourceFile,
 } from "@closet/contract";
+import {
+  draftToText,
+  emptyDraft,
+  importAgentMarkdown,
+  parseSpec,
+  type RenderedFile,
+  renderSpec,
+  type SpecDraft,
+  SpecError,
+  textToDraft,
+} from "@closet/harness-render";
 
 export interface FormFile {
   id: string;
@@ -21,6 +37,16 @@ export interface FormFile {
   text: string;
   bytes: Uint8Array | null;
   sizeBytes: number;
+  /** `spec` — нейтральный источник, из которого реестр генерирует файлы под `targets`. */
+  format: PluginFileFormat;
+  targets: HarnessId[];
+  /** Поля формы «универсальный элемент»; `null` у raw и у spec, который не разобрался (тогда правится `text`). */
+  draft: SpecDraft | null;
+}
+
+/** Поля raw-файла; функция, а не константа, чтобы у строк не было общего массива `targets`. */
+function rawFields(): Pick<FormFile, "format" | "targets" | "draft"> {
+  return { format: "raw", targets: [], draft: null };
 }
 
 let idCounter = 0;
@@ -180,14 +206,14 @@ export async function formFileFromBrowserFile(file: File): Promise<FormFile> {
     text: text ?? "",
     bytes: text === null ? bytes : null,
     sizeBytes: bytes.byteLength,
+    ...rawFields(),
   };
 }
 
-/** Строка формы из файла, уже лежащего в реестре (ответ bundle-эндпоинта). */
-export function formFileFromBundleFile(file: PluginBundleFile): FormFile {
+/** Строка формы из файла, уже лежащего в реестре (bundle или исходники версии). */
+export function formFileFromBundleFile(file: PluginBundleFile | PluginSourceFile): FormFile {
   const isText = file.encoding === "utf8";
-
-  return {
+  const base: FormFile = {
     id: nextId(),
     relativePath: file.relativePath,
     component: file.component,
@@ -200,6 +226,131 @@ export function formFileFromBundleFile(file: PluginBundleFile): FormFile {
     text: isText ? file.content : "",
     bytes: isText ? null : base64ToBytes(file.content),
     sizeBytes: Number(file.sizeBytes) || 0,
+    ...rawFields(),
+  };
+
+  return "format" in file && file.format === "spec"
+    ? { ...base, format: "spec", targets: file.targets ?? [], draft: tryTextToDraft(base.text) }
+    : base;
+}
+
+/** Разбирает spec в черновик; `null`, если не разобрался — форма тогда покажет исходный текст как есть. */
+function tryTextToDraft(text: string): SpecDraft | null {
+  try {
+    return textToDraft(text);
+  } catch (error) {
+    if (error instanceof SpecError) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+/** Цели по умолчанию для нового универсального элемента: все harness'ы, поддерживающие компонент. */
+export function defaultTargets(component: PluginComponent): HarnessId[] {
+  return HARNESS_IDS.filter((harness) => isHarnessSupported(component, harness));
+}
+
+/** Новая строка «универсальный элемент» (пока только агент) с пустым черновиком. */
+export function emptySpecFormFile(): FormFile {
+  return {
+    id: nextId(),
+    relativePath: "",
+    component: "agents",
+    ai: null,
+    rootPath: false,
+    merge: false,
+    mergeKeyPath: "",
+    template: false,
+    kind: "text",
+    text: "",
+    bytes: null,
+    sizeBytes: 0,
+    format: "spec",
+    targets: defaultTargets("agents"),
+    draft: emptyDraft(),
+  };
+}
+
+/**
+ * Превращает обычный файл агента (`.claude/agents/*.md`) в универсальный элемент.
+ *
+ * @throws {SpecError} если у файла нет валидного frontmatter
+ */
+export function importAsSpecFile(file: FormFile): FormFile {
+  const fileName = (file.relativePath.split("/").at(-1) ?? "").replace(/\.[^.]+$/, "");
+
+  return {
+    ...file,
+    component: "agents",
+    ai: null,
+    relativePath: "",
+    rootPath: false,
+    merge: false,
+    template: false,
+    format: "spec",
+    targets: defaultTargets("agents"),
+    draft: importAgentMarkdown(file.text, fileName),
+  };
+}
+
+/** Путь файла в плагине; у универсального элемента он выводится из имени (`<name>.md`). */
+export function fileRelativePath(file: FormFile): string {
+  return file.format === "spec" && file.draft ? `${file.draft.name.trim()}.md` : file.relativePath;
+}
+
+/**
+ * Содержимое файла, которое уйдёт в реестр.
+ *
+ * @throws {SpecError} если поля универсального элемента не собираются в валидный spec
+ */
+export function fileText(file: FormFile): string {
+  return file.format === "spec" && file.draft ? draftToText(file.draft) : file.text;
+}
+
+export interface SpecPreview {
+  harness: HarnessId;
+  rendered: RenderedFile | null;
+  error: string | null;
+}
+
+/** Что получится для каждой выбранной цели; ошибка рендера не роняет форму, а показывается в превью. */
+export function previewSpec(file: FormFile): SpecPreview[] {
+  let spec: ReturnType<typeof parseSpec>;
+
+  try {
+    spec = parseSpec(fileText(file));
+  } catch (error) {
+    if (!(error instanceof SpecError)) {
+      throw error;
+    }
+
+    return file.targets.map((harness) => ({ harness, rendered: null, error: error.message }));
+  }
+
+  return file.targets.map((harness) => {
+    try {
+      return { harness, rendered: renderSpec(spec, harness), error: null };
+    } catch (error) {
+      if (!(error instanceof SpecError)) {
+        throw error;
+      }
+
+      return { harness, rendered: null, error: error.message };
+    }
+  });
+}
+
+/** Raw-файл под конкретный harness с содержимым, которое сгенерировал бы реестр: стартовая точка для override. */
+export function overrideFileFor(rendered: RenderedFile, harness: HarnessId): FormFile {
+  return {
+    ...emptyTextFormFile(),
+    component: "agents",
+    ai: harness,
+    relativePath: rendered.relativePath,
+    text: rendered.content,
+    sizeBytes: rendered.content.length,
   };
 }
 
@@ -220,6 +371,7 @@ export function emptyTextFormFile(): FormFile {
     text: "",
     bytes: null,
     sizeBytes: 0,
+    ...rawFields(),
   };
 }
 
@@ -229,7 +381,7 @@ export function emptyTextFormFile(): FormFile {
  * (см. buildFileKey в routes/admin-plugins.ts).
  */
 function multipartFieldName(file: FormFile): string {
-  return `${file.component}::${file.ai ?? ""}::${file.relativePath}`;
+  return `${file.component}::${file.ai ?? ""}::${fileRelativePath(file)}`;
 }
 
 export interface PluginFormValues {
@@ -239,6 +391,32 @@ export interface PluginFormValues {
   changelog: string;
   dependencies: string[];
   files: FormFile[];
+}
+
+/** Проверки универсального элемента: цели и то, что поля собираются в валидный spec. */
+function validateSpecFile(file: FormFile): string[] {
+  const errors: string[] = [];
+  const title = file.draft?.name.trim() || "универсальный элемент";
+
+  if (file.targets.length === 0) {
+    errors.push(`${title}: выберите хотя бы одну цель`);
+  }
+  for (const target of file.targets) {
+    if (!isHarnessSupported(file.component, target)) {
+      errors.push(`${title}: компонент ${file.component} не поддерживается для ${target}`);
+    }
+  }
+
+  try {
+    parseSpec(fileText(file));
+  } catch (error) {
+    if (!(error instanceof SpecError)) {
+      throw error;
+    }
+    errors.push(`${title}: ${error.message}`);
+  }
+
+  return errors;
 }
 
 /** Валидация до отправки: сообщения те же, что вернул бы реестр, но без сетевого раунда. */
@@ -257,20 +435,24 @@ export function validateForm(values: PluginFormValues, options: { requireSlug: b
 
   const seen = new Set<string>();
   for (const file of values.files) {
-    if (!file.relativePath.trim()) {
+    const relativePath = fileRelativePath(file);
+
+    if (file.format === "spec") {
+      errors.push(...validateSpecFile(file));
+    } else if (!relativePath.trim()) {
       errors.push("У каждого файла должен быть путь");
       continue;
     }
-    if (file.relativePath.startsWith("/") || file.relativePath.includes("..")) {
-      errors.push(`${file.relativePath}: путь не может быть абсолютным или содержать ".."`);
+    if (relativePath.startsWith("/") || relativePath.includes("..")) {
+      errors.push(`${relativePath}: путь не может быть абсолютным или содержать ".."`);
     }
     if (file.merge && !file.mergeKeyPath.trim()) {
-      errors.push(`${file.relativePath}: для merge-файла обязателен mergeKeyPath`);
+      errors.push(`${relativePath}: для merge-файла обязателен mergeKeyPath`);
     }
 
     const key = multipartFieldName(file);
     if (seen.has(key)) {
-      errors.push(`Дубль файла: ${file.component}/${file.ai ?? "общий"}/${file.relativePath}`);
+      errors.push(`Дубль файла: ${file.component}/${file.ai ?? "общий"}/${relativePath}`);
     }
     seen.add(key);
   }
@@ -283,11 +465,12 @@ export function buildFormData(values: PluginFormValues): FormData {
   const files: PluginFileInput[] = values.files.map((file) => ({
     component: file.component,
     ai: file.ai,
-    relativePath: file.relativePath,
+    relativePath: fileRelativePath(file),
     rootPath: file.rootPath,
     merge: file.merge,
     template: file.template,
-    format: "raw",
+    format: file.format,
+    ...(file.format === "spec" && { targets: file.targets }),
     ...(file.merge && { mergeKeyPath: file.mergeKeyPath.trim() }),
   }));
 
@@ -304,8 +487,8 @@ export function buildFormData(values: PluginFormValues): FormData {
   formData.append("metadata", JSON.stringify(metadata));
 
   for (const file of values.files) {
-    const payload: BlobPart = file.kind === "binary" && file.bytes ? new Uint8Array(file.bytes) : file.text;
-    const fileName = file.relativePath.split("/").at(-1) || "file";
+    const payload: BlobPart = file.kind === "binary" && file.bytes ? new Uint8Array(file.bytes) : fileText(file);
+    const fileName = fileRelativePath(file).split("/").at(-1) || "file";
     formData.append(multipartFieldName(file), new Blob([payload]), fileName);
   }
 

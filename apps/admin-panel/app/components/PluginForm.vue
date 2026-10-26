@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import {
+  HARNESS_IDS,
+  type HarnessId,
+  isHarnessSupported,
   MAX_FILE_SIZE_BYTES,
   MAX_FILES_PER_VERSION,
   PLUGIN_COMPONENTS,
@@ -7,21 +10,28 @@ import {
   type PluginBundle,
   type PluginFileAi,
   type PluginListItem,
+  type PluginSource,
 } from "@closet/contract";
+import { SpecError } from "@closet/harness-render";
 import { ComponentBadge, formatBytes } from "@closet/ui";
 import {
+  emptySpecFormFile,
   emptyTextFormFile,
   type FormFile,
+  fileRelativePath,
   formFileFromBrowserFile,
   formFileFromBundleFile,
+  importAsSpecFile,
+  overrideFileFor,
   type PluginFormValues,
+  previewSpec,
   suggestMergeKeyPath,
   validateForm,
 } from "~/utils/plugin-files";
 
 const props = defineProps<{
   mode: "create" | "edit";
-  initial?: PluginBundle | null;
+  initial?: PluginBundle | PluginSource | null;
   availablePlugins: PluginListItem[];
   submitting: boolean;
   error: string | null;
@@ -116,6 +126,68 @@ function addEmptyFile(): void {
   const file = emptyTextFormFile();
   files.value = [...files.value, file];
   expanded.value = new Set([...expanded.value, file.id]);
+}
+
+function addSpecFile(): void {
+  const file = emptySpecFormFile();
+  files.value = [...files.value, file];
+  expanded.value = new Set([...expanded.value, file.id]);
+}
+
+/** Обычный файл агента -> универсальный элемент: строка заменяется на месте, harness-поля уходят в блок claude-code. */
+function importAsSpec(file: FormFile): void {
+  try {
+    const converted = importAsSpecFile(file);
+    files.value = files.value.map((item) => (item.id === file.id ? converted : item));
+    localErrors.value = [];
+  } catch (error) {
+    if (!(error instanceof SpecError)) {
+      throw error;
+    }
+    localErrors.value = [`${file.relativePath}: не удалось импортировать как универсальный элемент — ${error.message}`];
+  }
+}
+
+function toggleTarget(file: FormFile, harness: HarnessId): void {
+  file.targets = file.targets.includes(harness)
+    ? file.targets.filter((item) => item !== harness)
+    : HARNESS_IDS.filter((id) => id === harness || file.targets.includes(id));
+}
+
+/** Вкладка превью выбирается по id строки; если выбранную цель сняли — показываем первую из оставшихся. */
+const previewTabs = ref<Record<string, HarnessId>>({});
+
+function activePreviewTab(file: FormFile): HarnessId | undefined {
+  const picked = previewTabs.value[file.id];
+
+  return picked && file.targets.includes(picked) ? picked : file.targets[0];
+}
+
+function findOverride(harness: HarnessId, relativePath: string): FormFile | undefined {
+  return files.value.find(
+    (item) =>
+      item.format === "raw" &&
+      item.component === "agents" &&
+      item.ai === harness &&
+      fileRelativePath(item) === relativePath,
+  );
+}
+
+/** Создаёт raw-файл под harness с тем, что сгенерировал бы реестр; реестр отдаст его вместо сгенерированного. */
+function overrideWithOwnFile(file: FormFile, harness: HarnessId): void {
+  const rendered = previewSpec(file).find((item) => item.harness === harness)?.rendered;
+
+  if (!rendered) {
+    return;
+  }
+
+  const existing = findOverride(harness, rendered.relativePath);
+  const target = existing ?? overrideFileFor(rendered, harness);
+
+  if (!existing) {
+    files.value = [...files.value, target];
+  }
+  expanded.value = new Set([...expanded.value, target.id]);
 }
 
 function removeFile(id: string): void {
@@ -269,6 +341,9 @@ const totalSize = computed(() => files.value.reduce((sum, file) => sum + (file.b
             <button type="button" class="btn btn--sm" @click.stop="fileInput?.click()">выбрать файлы</button>
             <button type="button" class="btn btn--sm" @click.stop="dirInput?.click()">выбрать папку</button>
             <button type="button" class="btn btn--sm" @click.stop="addEmptyFile()">создать пустой</button>
+            <button type="button" class="btn btn--sm btn--primary" @click.stop="addSpecFile()">
+              универсальный агент
+            </button>
           </span>
         </div>
 
@@ -296,7 +371,18 @@ const totalSize = computed(() => files.value.reduce((sum, file) => sum + (file.b
 
         <div v-else>
           <div v-for="file in files" :key="file.id" class="file-row">
-            <div class="file-row__head">
+            <div v-if="file.format === 'spec'" class="file-row__head">
+              <ComponentBadge :component="file.component" :ai="null" />
+              <span class="badge badge--accent nowrap">универсальный</span>
+              <code class="file-row__path">{{ fileRelativePath(file) || "имя не задано" }}</code>
+              <span v-for="target in file.targets" :key="target" class="badge nowrap">{{ target }}</span>
+              <button type="button" class="btn btn--sm btn--ghost" @click="toggleExpanded(file.id)">
+                {{ expanded.has(file.id) ? "свернуть" : "настроить" }}
+              </button>
+              <button type="button" class="btn btn--sm btn--danger" @click="removeFile(file.id)">×</button>
+            </div>
+
+            <div v-else class="file-row__head">
               <ComponentBadge :component="file.component" :ai="file.ai" />
               <input v-model="file.relativePath" class="input input--mono file-row__path" placeholder="path/inside/component.md" />
               <span class="badge badge--muted nowrap">{{ file.kind === "binary" ? "bin" : formatBytes(file.text.length) }}</span>
@@ -306,7 +392,106 @@ const totalSize = computed(() => files.value.reduce((sum, file) => sum + (file.b
               <button type="button" class="btn btn--sm btn--danger" @click="removeFile(file.id)">×</button>
             </div>
 
-            <div v-if="expanded.has(file.id)" class="file-row__body stack">
+            <div v-if="file.format === 'spec' && expanded.has(file.id)" class="file-row__body stack">
+              <template v-if="file.draft">
+                <div class="form-grid">
+                  <div class="field">
+                    <span class="field__label">имя агента</span>
+                    <input v-model="file.draft.name" class="input input--mono" placeholder="reviewer" />
+                    <span class="field__hint">станет именем файла: <code>{{ fileRelativePath(file) || "—" }}</code></span>
+                  </div>
+                  <div class="field">
+                    <span class="field__label">описание</span>
+                    <input v-model="file.draft.description" class="input" placeholder="Когда вызывать этого агента" />
+                  </div>
+                </div>
+
+                <div class="field">
+                  <span class="field__label">текст агента (промпт)</span>
+                  <textarea v-model="file.draft.body" class="textarea textarea--mono" rows="12" spellcheck="false" />
+                </div>
+
+                <div class="field">
+                  <span class="field__label">цели</span>
+                  <div class="row">
+                    <label
+                      v-for="harness in HARNESS_IDS"
+                      :key="harness"
+                      class="checkbox"
+                      :class="{ 'checkbox--off': !isHarnessSupported(file.component, harness) }"
+                      :title="isHarnessSupported(file.component, harness) ? '' : `${file.component} не поддерживается для ${harness}`"
+                    >
+                      <input
+                        type="checkbox"
+                        :checked="file.targets.includes(harness)"
+                        :disabled="!isHarnessSupported(file.component, harness)"
+                        @change="toggleTarget(file, harness)"
+                      />
+                      {{ harness }}
+                    </label>
+                  </div>
+                  <span class="field__hint">под каждую цель реестр сам соберёт файл нужного формата</span>
+                </div>
+
+                <details v-for="harness in HARNESS_IDS" :key="harness" class="extras">
+                  <summary>Доп. поля для {{ harness === "claude-code" ? "Claude" : "Codex" }} (YAML)</summary>
+                  <textarea
+                    v-model="file.draft.extras[harness]"
+                    class="textarea textarea--mono"
+                    rows="4"
+                    spellcheck="false"
+                    :placeholder="harness === 'claude-code' ? 'model: sonnet' : 'model_reasoning_effort: high'"
+                  />
+                  <span class="field__hint">
+                    Попадают только в файл этого harness'а как есть: общего «языка» для инструментов и моделей нет.
+                  </span>
+                </details>
+              </template>
+
+              <template v-else>
+                <div class="alert alert--error">
+                  Исходник не разобрался как универсальный элемент — правьте текст целиком (frontmatter с
+                  <code>name</code> и <code>description</code>).
+                </div>
+                <textarea v-model="file.text" class="textarea textarea--mono" rows="12" spellcheck="false" />
+              </template>
+
+              <div v-if="file.targets.length > 0" class="field">
+                <span class="field__label">что получится</span>
+                <div class="row">
+                  <button
+                    v-for="harness in file.targets"
+                    :key="harness"
+                    type="button"
+                    class="badge"
+                    :class="{ 'badge--accent': activePreviewTab(file) === harness }"
+                    @click="previewTabs = { ...previewTabs, [file.id]: harness }"
+                  >
+                    {{ harness }}
+                  </button>
+                </div>
+                <template v-for="item in previewSpec(file)" :key="item.harness">
+                  <div v-if="item.harness === activePreviewTab(file)" class="preview">
+                    <div v-if="item.error" class="alert alert--error">{{ item.error }}</div>
+                    <template v-else-if="item.rendered">
+                      <div class="row">
+                        <code>agents/{{ item.harness }}/{{ item.rendered.relativePath }}</code>
+                        <span class="spacer" />
+                        <span v-if="findOverride(item.harness, item.rendered.relativePath)" class="badge badge--accent">
+                          переопределён своим файлом
+                        </span>
+                        <button type="button" class="btn btn--sm" @click="overrideWithOwnFile(file, item.harness)">
+                          {{ findOverride(item.harness, item.rendered.relativePath) ? "открыть свой файл" : "заменить на свой файл" }}
+                        </button>
+                      </div>
+                      <pre class="preview__code">{{ item.rendered.content }}</pre>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <div v-else-if="file.format === 'raw' && expanded.has(file.id)" class="file-row__body stack">
               <div class="form-grid">
                 <div class="field">
                   <span class="field__label">component</span>
@@ -353,6 +538,13 @@ const totalSize = computed(() => files.value.reduce((sum, file) => sum + (file.b
                   Именованный слот в целевом файле. Для массивов — суффикс <code>[]</code>, например
                   <code>hooks.PostToolUse[]</code>. Содержимое merge-файла всегда JSON, даже если цель — TOML.
                 </span>
+              </div>
+
+              <div v-if="file.kind === 'text' && file.component === 'agents'" class="row">
+                <button type="button" class="btn btn--sm" @click="importAsSpec(file)">
+                  импортировать как универсальный агент
+                </button>
+                <span class="field__hint">name/description станут общими, остальные поля frontmatter — блоком Claude</span>
               </div>
 
               <div v-if="file.kind === 'text'" class="field">
@@ -707,6 +899,41 @@ const totalSize = computed(() => files.value.reduce((sum, file) => sum + (file.b
 .file-row__path {
   flex: 1;
   min-width: 0;
+}
+
+.checkbox--off {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.extras summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.extras[open] summary {
+  margin-bottom: 8px;
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preview__code {
+  max-height: 320px;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-0);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .file-row__body {

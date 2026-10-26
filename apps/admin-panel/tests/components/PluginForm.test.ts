@@ -209,3 +209,106 @@ describe("PluginForm: сборка значений из строк формы",
     expect(values.slug).toBe("my-plugin");
   });
 });
+
+describe("PluginForm: универсальный агент", () => {
+  async function addSpec(wrapper: VueWrapper): Promise<void> {
+    await clickButton(wrapper, "универсальный агент");
+    await wrapper.find("input[placeholder=reviewer]").setValue("reviewer");
+    await wrapper.find("input[placeholder='Когда вызывать этого агента']").setValue("Ревьюит");
+    await wrapper.find(".file-row textarea").setValue("Ты — ревьюер.");
+  }
+
+  async function fillMeta(wrapper: VueWrapper): Promise<void> {
+    await wrapper.find("#slug").setValue("my-plugin");
+    await wrapper.find("#version").setValue("1.0.0");
+  }
+
+  it("добавляет строку, показывает превью по каждой цели и эмитит spec с targets", async () => {
+    const wrapper = mountForm();
+    await fillMeta(wrapper);
+    await addSpec(wrapper);
+
+    expect(wrapper.find(".preview__code").text()).toContain("name: reviewer");
+    await wrapper
+      .findAll(".file-row .row button.badge")
+      .find((b) => b.text() === "codex")
+      ?.trigger("click");
+    expect(wrapper.find(".preview__code").text()).toContain('name = "reviewer"');
+
+    await wrapper.find("form").trigger("submit");
+
+    const [values] = wrapper.emitted("submit")?.[0] as [PluginFormValues];
+    expect(values.files[0]).toMatchObject({
+      format: "spec",
+      component: "agents",
+      ai: null,
+      targets: ["claude-code", "codex"],
+    });
+  });
+
+  it("снятая цель убирается из targets, без целей форма не отправляется", async () => {
+    const wrapper = mountForm();
+    await fillMeta(wrapper);
+    await addSpec(wrapper);
+
+    for (const checkbox of wrapper.findAll(".file-row input[type=checkbox]")) {
+      await checkbox.setValue(false);
+    }
+    await wrapper.find("form").trigger("submit");
+
+    expect(wrapper.emitted("submit")).toBeUndefined();
+    expect(wrapper.find(".alert--error").text()).toContain("выберите хотя бы одну цель");
+  });
+
+  it("«заменить на свой файл» добавляет raw-файл под harness", async () => {
+    const wrapper = mountForm();
+    await fillMeta(wrapper);
+    await addSpec(wrapper);
+
+    await clickButton(wrapper, "заменить на свой файл");
+
+    expect(wrapper.findAll(".file-row")).toHaveLength(2);
+    expect(wrapper.text()).toContain("переопределён своим файлом");
+    await wrapper.find("form").trigger("submit");
+    const [values] = wrapper.emitted("submit")?.[0] as [PluginFormValues];
+    expect(values.files[1]).toMatchObject({
+      format: "raw",
+      component: "agents",
+      ai: "claude-code",
+      relativePath: "reviewer.md",
+    });
+  });
+
+  it("в режиме edit spec из исходников версии открывается как универсальный элемент", () => {
+    const wrapper = mountForm({
+      mode: "edit",
+      initial: {
+        slug: "my-plugin",
+        description: "d",
+        version: "1.0.0",
+        changelog: null,
+        dependencies: [],
+        files: [
+          {
+            component: "agents",
+            ai: null,
+            relativePath: "reviewer.md",
+            rootPath: false,
+            merge: false,
+            mergeKeyPath: null,
+            template: false,
+            sizeBytes: "40",
+            sha256: "0".repeat(64),
+            format: "spec",
+            targets: ["codex"],
+            encoding: "utf8",
+            content: "---\nname: reviewer\ndescription: d\n---\nТело\n",
+          },
+        ],
+      },
+    });
+
+    expect(wrapper.find(".file-row").text()).toContain("универсальный");
+    expect(wrapper.find(".file-row").text()).toContain("codex");
+  });
+});

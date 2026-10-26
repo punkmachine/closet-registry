@@ -1,12 +1,19 @@
 import type { PluginPublishMetadata } from "@closet/contract";
+import type { RenderedFile, SpecDraft } from "@closet/harness-render";
 import { describe, expect, it, vi } from "vitest";
 import {
   buildFormData,
   classifyPath,
+  emptySpecFormFile,
   emptyTextFormFile,
   type FormFile,
+  fileRelativePath,
+  formFileFromBundleFile,
   guessComponentByFileName,
+  importAsSpecFile,
+  overrideFileFor,
   type PluginFormValues,
+  previewSpec,
   suggestMergeKeyPath,
   validateForm,
 } from "~/utils/plugin-files";
@@ -323,5 +330,130 @@ describe("buildFormData", () => {
     } finally {
       append.mockRestore();
     }
+  });
+});
+
+describe("универсальные элементы (spec)", () => {
+  const draftOf = (patch: Partial<SpecDraft> = {}): SpecDraft => ({
+    name: "reviewer",
+    description: "Ревьюит диффы",
+    body: "Ты — ревьюер.",
+    extras: { "claude-code": "model: sonnet", codex: "" },
+    ...patch,
+  });
+  const specFile = (patch: Partial<FormFile> = {}): FormFile => ({
+    ...emptySpecFormFile(),
+    draft: draftOf(),
+    ...patch,
+  });
+
+  it("emptySpecFormFile: агент, цели — все поддерживающие harness'ы, пути нет до ввода имени", () => {
+    const file = emptySpecFormFile();
+
+    expect(file).toMatchObject({ component: "agents", ai: null, format: "spec", targets: ["claude-code", "codex"] });
+    expect(fileRelativePath(file)).toBe(".md");
+  });
+
+  it("путь выводится из имени, а в метаданных уходит format: spec с targets", () => {
+    const formData = buildFormData(makeValues({ files: [specFile({ targets: ["codex"] })] }));
+    const metadata = JSON.parse(formData.get("metadata") as string) as PluginPublishMetadata;
+
+    expect(metadata.files[0]).toMatchObject({
+      component: "agents",
+      ai: null,
+      relativePath: "reviewer.md",
+      format: "spec",
+      targets: ["codex"],
+    });
+  });
+
+  it("тело части — собранный spec: нейтральные поля и блок claude-code", async () => {
+    const formData = buildFormData(makeValues({ files: [specFile()] }));
+    const part = formData.get("agents::::reviewer.md") as Blob;
+    const text = await part.text();
+
+    expect(text).toBe(
+      "---\nname: reviewer\ndescription: Ревьюит диффы\nclaude-code:\n  model: sonnet\n---\n\nТы — ревьюер.\n",
+    );
+  });
+
+  it("валидация: нет целей, битый YAML, невалидное имя", () => {
+    const errors = (file: FormFile) => validateForm(makeValues({ files: [file] }), { requireSlug: false });
+
+    expect(errors(specFile())).toEqual([]);
+    expect(errors(specFile({ targets: [] }))).toEqual(["reviewer: выберите хотя бы одну цель"]);
+    expect(errors(specFile({ targets: ["codex"], component: "commands" }))[0]).toContain("не поддерживается для codex");
+
+    const broken = specFile({ draft: draftOf({ extras: { "claude-code": "a: [", codex: "" } }) });
+    expect(errors(broken)[0]).toContain("claude-code: невалидный YAML");
+
+    const badName = specFile({ draft: draftOf({ name: "../evil" }) });
+    expect(errors(badName).some((message) => message.includes("name:"))).toBe(true);
+  });
+
+  it("previewSpec: файл на каждую цель, ошибка рендера не бросается", () => {
+    const previews = previewSpec(specFile());
+
+    expect(previews.map((item) => item.rendered?.relativePath)).toEqual(["reviewer.md", "reviewer.toml"]);
+
+    const broken = specFile({ draft: draftOf({ name: "" }) });
+    expect(previewSpec(broken).every((item) => item.rendered === null && item.error)).toBe(true);
+  });
+
+  it("overrideFileFor: raw-файл под harness с содержимым рендера", () => {
+    const rendered: RenderedFile = { relativePath: "reviewer.toml", content: 'name = "reviewer"\n' };
+    const override = overrideFileFor(rendered, "codex");
+
+    expect(override).toMatchObject({ format: "raw", component: "agents", ai: "codex", relativePath: "reviewer.toml" });
+    expect(override.text).toBe(rendered.content);
+  });
+
+  it("importAsSpecFile: поля frontmatter агента Claude уходят в блок claude-code", () => {
+    const file = makeFile({
+      component: "agents",
+      relativePath: "helper.md",
+      text: "---\ndescription: Помогает\ntools: Read\n---\nТело\n",
+    });
+
+    const converted = importAsSpecFile(file);
+
+    expect(converted).toMatchObject({ format: "spec", ai: null, targets: ["claude-code", "codex"] });
+    expect(converted.draft).toMatchObject({ name: "helper", description: "Помогает", body: "Тело" });
+    expect(converted.draft?.extras["claude-code"]).toBe("tools: Read");
+  });
+
+  it("formFileFromBundleFile: spec из исходников версии возвращается в черновик, raw — как раньше", () => {
+    const base = {
+      component: "agents",
+      ai: null,
+      rootPath: false,
+      merge: false,
+      mergeKeyPath: null,
+      template: false,
+      sha256: "0".repeat(64),
+      sizeBytes: "10",
+      encoding: "utf8",
+    } as const;
+
+    const spec = formFileFromBundleFile({
+      ...base,
+      relativePath: "reviewer.md",
+      format: "spec",
+      targets: ["codex"],
+      content: "---\nname: reviewer\ndescription: d\n---\nТело\n",
+    });
+    expect(spec).toMatchObject({ format: "spec", targets: ["codex"], draft: { name: "reviewer", body: "Тело" } });
+
+    const broken = formFileFromBundleFile({
+      ...base,
+      relativePath: "x.md",
+      format: "spec",
+      targets: ["codex"],
+      content: "нет",
+    });
+    expect(broken).toMatchObject({ format: "spec", draft: null, text: "нет" });
+
+    const raw = formFileFromBundleFile({ ...base, relativePath: "r.md", ai: "codex", content: "x" });
+    expect(raw).toMatchObject({ format: "raw", targets: [], draft: null });
   });
 });

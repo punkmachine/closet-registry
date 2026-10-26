@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PluginBundle, PluginListResponse } from "@closet/contract";
+import type { PluginListResponse, PluginSource } from "@closet/contract";
 import { errorMessage } from "~/utils/format";
 import { buildFormData, type PluginFormValues } from "~/utils/plugin-files";
 
@@ -11,8 +11,8 @@ const router = useRouter();
 const slug = computed(() => String(route.params.slug));
 const versionParam = computed(() => (typeof route.query.version === "string" ? route.query.version : "latest"));
 
-const { data: bundle, error: loadError } = await useFetch<PluginBundle>(
-  () => `/api/plugins/${encodeURIComponent(slug.value)}/${encodeURIComponent(versionParam.value)}`,
+const { data: bundle, error: loadError } = await useFetch<PluginSource>(
+  () => `/api/plugins/${encodeURIComponent(slug.value)}/${encodeURIComponent(versionParam.value)}/source`,
 );
 
 const { data: list } = await useFetch<PluginListResponse>("/api/plugins");

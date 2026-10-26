@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@closet/contract": "workspace:*",
+    "@closet/harness-render": "workspace:*",
     "@closet/ui": "workspace:*",
     "nuxt": "^4.6.2",
     "vue": "^3.5.43",

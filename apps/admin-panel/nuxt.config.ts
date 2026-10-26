@@ -5,7 +5,7 @@ export default defineNuxtConfig({
 
   css: ["@closet/ui/tokens.css", "@closet/ui/utilities.css", "~/assets/css/main.css"],
 
-  build: { transpile: ["@closet/ui", "@closet/contract"] },
+  build: { transpile: ["@closet/ui", "@closet/contract", "@closet/harness-render"] },
 
   runtimeConfig: {
     registryUrl: "",
